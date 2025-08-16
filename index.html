@@ -1,1233 +1,844 @@
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <title>PitStop - Vehicle Maintenance Tracker</title>
-          <meta charset=\"utf-8\" />
-          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-          <style>
-              * { box-sizing: border-box; margin: 0; padding: 0; }
-              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
-              
-              /* Mobile-first responsive design */
-              .header { background: rgba(255,255,255,0.95); padding: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-              .header-content { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
-              .logo { font-size: 2em; font-weight: bold; color: #333; }
-              
-              /* Hamburger menu for mobile */
-              .hamburger { display: none; flex-direction: column; cursor: pointer; background: none; border: none; padding: 5px; }
-              .hamburger span { width: 25px; height: 3px; background: #333; margin: 3px 0; transition: 0.3s; }
-              .hamburger.active span:nth-child(1) { transform: rotate(-45deg) translate(-5px, 6px); }
-              .hamburger.active span:nth-child(2) { opacity: 0; }
-              .hamburger.active span:nth-child(3) { transform: rotate(45deg) translate(-5px, -6px); }
-              
-              .nav { display: flex; gap: 20px; align-items: center; }
-              .nav-btn { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.3s; }
-              .nav-btn:hover { background: #2563eb; transform: translateY(-2px); }
-              .nav-btn.active { background: #1d4ed8; }
-              
-              /* Floating action button */
-              .fab { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #10b981; color: white; border: none; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 100; transition: all 0.3s; }
-              .fab:hover { background: #059669; transform: scale(1.1); }
-              .fab:active { transform: scale(0.95); }
-              
-              /* Hide FABs when section is not active */
-              .content-section:not(.active) .fab { display: none; }
-              
-              .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
-              .content-section { display: none; }
-              .content-section.active { display: block; }
-              .card { background: white; border-radius: 12px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-              .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }
-              .stat-card { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 25px; border-radius: 12px; text-align: center; transition: transform 0.3s; cursor: pointer; }
-              .stat-card:hover { transform: translateY(-5px); }
-              .stat-card h3 { font-size: 2.5em; margin-bottom: 10px; }
-              .vehicles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; margin: 20px 0; }
-              .vehicle-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: all 0.3s; }
-              .vehicle-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
-              .vehicle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-              .vehicle-title { font-size: 1.3em; font-weight: bold; color: #333; }
-              .vehicle-actions { display: flex; gap: 10px; }
-              .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.3s; text-decoration: none; display: inline-block; text-align: center; }
-              .btn-primary { background: #3b82f6; color: white; }
-              .btn-primary:hover { background: #2563eb; }
-              .btn-success { background: #10b981; color: white; }
-              .btn-success:hover { background: #059669; }
-              .btn-danger { background: #ef4444; color: white; }
-              .btn-danger:hover { background: #dc2626; }
-              .btn-secondary { background: #6b7280; color: white; }
-              .btn-secondary:hover { background: #4b5563; }
-              .btn-warning { background: #f59e0b; color: white; }
-              .btn-warning:hover { background: #d97706; }
-              .btn-sm { padding: 6px 12px; font-size: 0.875em; }
-              .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
-              .modal.active { display: flex; align-items: center; justify-content: center; }
-              .modal-content { background: white; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
-              .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-              .modal-title { font-size: 1.5em; font-weight: bold; }
-              .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
-              .form-group { margin-bottom: 20px; }
-              .form-label { display: block; margin-bottom: 5px; font-weight: 500; color: #333; }
-              .form-input { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 16px; transition: border-color 0.3s; }
-              .form-input:focus { outline: none; border-color: #3b82f6; }
-              .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-              .loading { text-align: center; padding: 40px; color: #666; }
-              .empty-state { text-align: center; padding: 60px 20px; color: #666; }
-              .empty-state h3 { font-size: 1.5em; margin-bottom: 10px; }
-              .records-list { margin-top: 20px; }
-              .record-item { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #3b82f6; position: relative; }
-              .record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-              .record-type { background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; }
-              .record-date { color: #666; font-size: 0.9em; }
-              .record-actions { position: absolute; top: 15px; right: 15px; display: flex; gap: 5px; }
-              .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
-              .tab { padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: 500; color: #666; border-bottom: 2px solid transparent; transition: all 0.3s; }
-              .tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
-              .tab:hover { color: #3b82f6; }
-              .tab-content { display: none; }
-              .tab-content.active { display: block; }
-              .next-service { background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 0.9em; }
-              .overdue { background: #fee2e2; border-color: #ef4444; }
-              .due-soon { background: #dbeafe; border-color: #3b82f6; }
-              .api-info { background: #f0f8ff; border: 1px solid #3b82f6; padding: 15px; border-radius: 6px; margin: 20px 0; font-size: 0.9em; }
-              .debug-info { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.8em; max-height: 300px; overflow-y: auto; }
-              
-              /* Mobile responsive styles */
-              @media (max-width: 768px) {
-                  .header-content { padding: 0 15px; }
-                  .logo { font-size: 1.5em; }
-                  .hamburger { display: flex; }
-                  .nav { 
-                      position: fixed; 
-                      top: 0; 
-                      right: -100%; 
-                      width: 250px; 
-                      height: 100vh; 
-                      background: rgba(255,255,255,0.98); 
-                      flex-direction: column; 
-                      padding: 80px 20px 20px; 
-                      transition: right 0.3s ease; 
-                      box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-                      z-index: 999;
-                  }
-                  .nav.active { right: 0; }
-                  .nav-btn { width: 100%; text-align: center; margin: 5px 0; }
-                  .container { padding: 0 15px; }
-                  .card { padding: 20px; margin: 15px 0; }
-                  .stats-grid { grid-template-columns: 1fr; gap: 15px; }
-                  .vehicles-grid { grid-template-columns: 1fr; }
-                  .form-row { grid-template-columns: 1fr; }
-                  .vehicle-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-                  .vehicle-actions { width: 100%; justify-content: flex-end; }
-                  .tabs { flex-wrap: wrap; }
-                  .tab { flex: 1; min-width: 120px; text-align: center; }
-                  .modal-content { width: 95%; padding: 20px; margin: 10px; }
-              }
-              
-              @media (max-width: 480px) {
-                  .header-content { padding: 0 10px; }
-                  .container { padding: 0 10px; }
-                  .card { padding: 15px; }
-                  .btn { padding: 10px 16px; font-size: 14px; }
-                  .fab { bottom: 15px; right: 15px; width: 55px; height: 55px; font-size: 20px; }
-              }
-          </style>
-      </head>
-      <body>
-          <div class=\"header\">
-              <div class=\"header-content\">
-                  <div class=\"logo\">🚗 PitStop</div>
-                  <button class=\"hamburger\" onclick=\"toggleMenu()\">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                  </button>
-                  <nav class=\"nav\" id=\"nav-menu\">
-                      <button class=\"nav-btn active\" onclick=\"showSection('dashboard'); closeMenu();\">Dashboard</button>
-                      <button class=\"nav-btn\" onclick=\"showSection('vehicles'); closeMenu();\">Vehicles</button>
-                      <button class=\"nav-btn\" onclick=\"showSection('maintenance'); closeMenu();\">Maintenance</button>
-                      <button class=\"nav-btn\" onclick=\"showSection('reports'); closeMenu();\">Reports</button>
-                  </nav>
-              </div>
-          </div>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PitStop - Vehicle Maintenance Tracker</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        
+        /* Mobile-first responsive design */
+        .header { background: rgba(255,255,255,0.95); padding: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 2em; font-weight: bold; color: #333; }
+        
+        /* Hamburger menu for mobile */
+        .hamburger { display: none; flex-direction: column; cursor: pointer; background: none; border: none; padding: 5px; }
+        .hamburger span { width: 25px; height: 3px; background: #333; margin: 3px 0; transition: 0.3s; }
+        .hamburger.active span:nth-child(1) { transform: rotate(-45deg) translate(-5px, 6px); }
+        .hamburger.active span:nth-child(2) { opacity: 0; }
+        .hamburger.active span:nth-child(3) { transform: rotate(45deg) translate(-5px, -6px); }
+        
+        .nav { display: flex; gap: 20px; align-items: center; }
+        .nav-btn { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.3s; }
+        .nav-btn:hover { background: #2563eb; transform: translateY(-2px); }
+        .nav-btn.active { background: #1d4ed8; }
+        
+        /* Floating action button */
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #10b981; color: white; border: none; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 100; transition: all 0.3s; }
+        .fab:hover { background: #059669; transform: scale(1.1); }
+        .fab:active { transform: scale(0.95); }
+        
+        /* Hide FABs when section is not active */
+        .content-section:not(.active) .fab { display: none; }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        .card { background: white; border-radius: 12px; padding: 25px; margin: 20px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }
+        .stat-card { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 25px; border-radius: 12px; text-align: center; transition: transform 0.3s; cursor: pointer; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card h3 { font-size: 2.5em; margin-bottom: 10px; }
+        .vehicles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; margin: 20px 0; }
+        .vehicle-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: all 0.3s; }
+        .vehicle-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .vehicle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .vehicle-title { font-size: 1.3em; font-weight: bold; color: #333; }
+        .vehicle-actions { display: flex; gap: 10px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.3s; text-decoration: none; display: inline-block; text-align: center; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-sm { padding: 6px 12px; font-size: 0.875em; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: white; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 1.5em; font-weight: bold; }
+        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 5px; font-weight: 500; color: #333; }
+        .form-input { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 16px; transition: border-color 0.3s; }
+        .form-input:focus { outline: none; border-color: #3b82f6; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+        .empty-state h3 { font-size: 1.5em; margin-bottom: 10px; }
+        .records-list { margin-top: 20px; }
+        .record-item { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #3b82f6; position: relative; }
+        .record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .record-type { background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; }
+        .record-date { color: #666; font-size: 0.9em; }
+        .record-actions { position: absolute; top: 15px; right: 15px; display: flex; gap: 5px; }
+        .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
+        .tab { padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: 500; color: #666; border-bottom: 2px solid transparent; transition: all 0.3s; }
+        .tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+        .tab:hover { color: #3b82f6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .next-service { background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 0.9em; }
+        .overdue { background: #fee2e2; border-color: #ef4444; }
+        .due-soon { background: #dbeafe; border-color: #3b82f6; }
+        .api-info { background: #f0f8ff; border: 1px solid #3b82f6; padding: 15px; border-radius: 6px; margin: 20px 0; font-size: 0.9em; }
+        .debug-info { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.8em; max-height: 300px; overflow-y: auto; }
+        
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            .header-content { padding: 0 15px; }
+            .logo { font-size: 1.5em; }
+            .hamburger { display: flex; }
+            .nav { 
+                position: fixed; 
+                top: 0; 
+                right: -100%; 
+                width: 250px; 
+                height: 100vh; 
+                background: rgba(255,255,255,0.98); 
+                flex-direction: column; 
+                padding: 80px 20px 20px; 
+                transition: right 0.3s ease; 
+                box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+                z-index: 999;
+            }
+            .nav.active { right: 0; }
+            .nav-btn { width: 100%; text-align: center; margin: 5px 0; }
+            .container { padding: 0 15px; }
+            .card { padding: 20px; margin: 15px 0; }
+            .stats-grid { grid-template-columns: 1fr; gap: 15px; }
+            .vehicles-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .vehicle-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .vehicle-actions { width: 100%; justify-content: flex-end; }
+            .tabs { flex-wrap: wrap; }
+            .tab { flex: 1; min-width: 120px; text-align: center; }
+            .modal-content { width: 95%; padding: 20px; margin: 10px; }
+        }
+        
+        @media (max-width: 480px) {
+            .header-content { padding: 0 10px; }
+            .container { padding: 0 10px; }
+            .card { padding: 15px; }
+            .btn { padding: 10px 16px; font-size: 14px; }
+            .fab { bottom: 15px; right: 15px; width: 55px; height: 55px; font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">🚗 PitStop</div>
+            <button class="hamburger" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <nav class="nav" id="nav-menu">
+                <button class="nav-btn active" onclick="showSection('dashboard'); closeMenu();">Dashboard</button>
+                <button class="nav-btn" onclick="showSection('vehicles'); closeMenu();">Vehicles</button>
+                <button class="nav-btn" onclick="showSection('maintenance'); closeMenu();">Maintenance</button>
+                <button class="nav-btn" onclick="showSection('reports'); closeMenu();">Reports</button>
+            </nav>
+        </div>
+    </div>
 
-          <div class=\"container\">
-              <!-- Dashboard Section -->
-              <div id=\"dashboard\" class=\"content-section active\">
-                  <div class=\"card\">
-                      <h2>Dashboard Overview</h2>
-                      <div class=\"api-info\">
-                          <strong>API URL:</strong> <span id=\"api-url-display\">Detecting...</span><br/>
-                          <strong>Status:</strong> <span id=\"api-status\">Checking...</span><br/>
-                          <strong>Current Location:</strong> <span id=\"current-location\"></span>
-                      </div>
-                      <div class=\"debug-info\" id=\"debug-log\">
-                          <strong>Connection Debug Log:</strong><br/>
-                      </div>
-                      <div id=\"stats-loading\" class=\"loading\">Loading dashboard stats...</div>
-                      <div id=\"stats-grid\" class=\"stats-grid\" style=\"display: none;\">
-                          <div class=\"stat-card\" onclick=\"showSection('vehicles'); highlightNav('vehicles');\">
-                              <h3 id=\"total-vehicles\">0</h3>
-                              <p>🚗 Total Vehicles</p>
-                          </div>
-                          <div class=\"stat-card\" onclick=\"showSection('maintenance'); highlightNav('maintenance');\">
-                              <h3 id=\"total-maintenance\">0</h3>
-                              <p>🔧 Maintenance Records</p>
-                          </div>
-                          <div class=\"stat-card\" onclick=\"showSection('reports'); highlightNav('reports');\">
-                              <h3 id=\"total-insurance\">0</h3>
-                              <p>🛡️ Insurance Records</p>
-                          </div>
-                          <div class=\"stat-card\" onclick=\"showSection('reports'); highlightNav('reports');\">
-                              <h3 id=\"total-registration\">0</h3>
-                              <p>📋 Registration Records</p>
-                          </div>
-                      </div>
-                  </div>
-                  <!-- Floating Action Button for Dashboard -->
-                  <button class=\"fab\" onclick=\"showSection('vehicles'); highlightNav('vehicles');\" title=\"Quick Add Vehicle\">🚗</button>
-              </div>
+    <div class="container">
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="content-section active">
+            <div class="card">
+                <h2>Dashboard Overview</h2>
+                <div class="api-info">
+                    <strong>API URL:</strong> <span id="api-url-display">Detecting...</span><br/>
+                    <strong>Status:</strong> <span id="api-status">Checking...</span><br/>
+                    <strong>Current Location:</strong> <span id="current-location"></span>
+                </div>
+                <div class="debug-info" id="debug-log">
+                    <strong>Connection Debug Log:</strong><br/>
+                </div>
+                <div id="stats-loading" class="loading">Loading dashboard stats...</div>
+                <div id="stats-grid" class="stats-grid" style="display: none;">
+                    <div class="stat-card" onclick="showSection('vehicles'); highlightNav('vehicles');">
+                        <h3 id="total-vehicles">0</h3>
+                        <p>🚗 Total Vehicles</p>
+                    </div>
+                    <div class="stat-card" onclick="showSection('maintenance'); highlightNav('maintenance');">
+                        <h3 id="total-maintenance">0</h3>
+                        <p>🔧 Maintenance Records</p>
+                    </div>
+                    <div class="stat-card" onclick="showSection('reports'); highlightNav('reports');">
+                        <h3 id="total-insurance">0</h3>
+                        <p>🛡️ Insurance Records</p>
+                    </div>
+                    <div class="stat-card" onclick="showSection('reports'); highlightNav('reports');">
+                        <h3 id="total-registration">0</h3>
+                        <p>📋 Registration Records</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Floating Action Button for Dashboard -->
+            <button class="fab" onclick="showSection('vehicles'); highlightNav('vehicles');" title="Quick Add Vehicle">🚗</button>
+        </div>
 
-              <!-- Vehicles Section -->
-              <div id=\"vehicles\" class=\"content-section\">
-                  <div class=\"card\">
-                      <div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;\">
-                          <h2>My Vehicles</h2>
-                      </div>
-                      <div id=\"vehicles-loading\" class=\"loading\">Loading vehicles...</div>
-                      <div id=\"vehicles-grid\" class=\"vehicles-grid\"></div>
-                  </div>
-                  <!-- Floating Action Button for Vehicles -->
-                  <button class=\"fab\" onclick=\"openAddVehicleModal()\" title=\"Add Vehicle\">+</button>
-              </div>
+        <!-- Vehicles Section -->
+        <div id="vehicles" class="content-section">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>My Vehicles</h2>
+                </div>
+                <div id="vehicles-loading" class="loading">Loading vehicles...</div>
+                <div id="vehicles-grid" class="vehicles-grid"></div>
+            </div>
+            <!-- Floating Action Button for Vehicles -->
+            <button class="fab" onclick="openAddVehicleModal()" title="Add Vehicle">+</button>
+        </div>
 
-              <!-- Maintenance Section -->
-              <div id=\"maintenance\" class=\"content-section\">
-                  <div class=\"card\">
-                      <h2>All Maintenance Records</h2>
-                      <div id=\"maintenance-content\">
-                          <div id=\"all-maintenance-records\"></div>
-                      </div>
-                  </div>
-                  <!-- Floating Action Button for Maintenance -->
-                  <button class=\"fab\" onclick=\"openMaintenanceModalFromMaintenance()\" title=\"Add Maintenance Record\">+</button>
-              </div>
+        <!-- Maintenance Section -->
+        <div id="maintenance" class="content-section">
+            <div class="card">
+                <h2>All Maintenance Records</h2>
+                <div id="maintenance-content">
+                    <div id="all-maintenance-records"></div>
+                </div>
+            </div>
+            <!-- Floating Action Button for Maintenance -->
+            <button class="fab" onclick="openMaintenanceModalFromMaintenance()" title="Add Maintenance Record">+</button>
+        </div>
 
-              <!-- Reports Section -->
-              <div id=\"reports\" class=\"content-section\">
-                  <div class=\"card\">
-                      <h2>Reports & Analytics</h2>
-                      <div class=\"stats-grid\">
-                          <div class=\"stat-card\">
-                              <h3 id=\"report-vehicles\">0</h3>
-                              <p>🚗 Total Vehicles</p>
-                          </div>
-                          <div class=\"stat-card\">
-                              <h3 id=\"report-maintenance\">0</h3>
-                              <p>🔧 Total Maintenance</p>
-                          </div>
-                          <div class=\"stat-card\">
-                              <h3 id=\"report-cost\">$0</h3>
-                              <p>💰 Total Spent</p>
-                          </div>
-                          <div class=\"stat-card\">
-                              <h3 id=\"report-avg\">$0</h3>
-                              <p>📊 Avg per Vehicle</p>
-                          </div>
-                      </div>
-                      <div id=\"reports-details\">
-                          <h3>Upcoming Services</h3>
-                          <div id=\"upcoming-services\"></div>
-                      </div>
-                  </div>
-                  <!-- Floating Action Button for Reports -->
-                  <button class=\"fab\" onclick=\"alert('Reports section - no specific add action needed')\" title=\"Reports Info\">ℹ</button>
-              </div>
-          </div>
+        <!-- Reports Section -->
+        <div id="reports" class="content-section">
+            <div class="card">
+                <h2>Reports & Analytics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="report-vehicles">0</h3>
+                        <p>🚗 Total Vehicles</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="report-maintenance">0</h3>
+                        <p>🔧 Total Maintenance</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="report-cost">$0</h3>
+                        <p>💰 Total Spent</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="report-avg">$0</h3>
+                        <p>📊 Avg per Vehicle</p>
+                    </div>
+                </div>
+                <div id="reports-details">
+                    <h3>Upcoming Services</h3>
+                    <div id="upcoming-services"></div>
+                </div>
+            </div>
+            <!-- Floating Action Button for Reports -->
+            <button class="fab" onclick="alert('Reports section - no specific add action needed')" title="Reports Info">ℹ</button>
+        </div>
+    </div>
 
-          <!-- Add/Edit Vehicle Modal -->
-          <div id=\"vehicleModal\" class=\"modal\">
-              <div class=\"modal-content\">
-                  <div class=\"modal-header\">
-                      <h3 class=\"modal-title\" id=\"vehicleModalTitle\">Add New Vehicle</h3>
-                      <button class=\"close-btn\" onclick=\"closeModal('vehicleModal')\">&times;</button>
-                  </div>
-                  <form id=\"vehicleForm\">
-                      <div class=\"form-row\">
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Make</label>
-                              <input type=\"text\" class=\"form-input\" name=\"make\" required placeholder=\"Toyota, Ford, BMW...\">
-                          </div>
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Model</label>
-                              <input type=\"text\" class=\"form-input\" name=\"model\" required placeholder=\"Camry, F-150, 3 Series...\">
-                          </div>
-                      </div>
-                      <div class=\"form-row\">
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Year</label>
-                              <input type=\"number\" class=\"form-input\" name=\"year\" required min=\"1900\" max=\"2025\">
-                          </div>
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Color</label>
-                              <input type=\"text\" class=\"form-input\" name=\"color\" required placeholder=\"Red, Blue, Silver...\">
-                          </div>
-                      </div>
-                      <div class=\"form-group\">
-                          <label class=\"form-label\">VIN (Vehicle Identification Number)</label>
-                          <input type=\"text\" class=\"form-input\" name=\"vin\" required maxlength=\"17\" placeholder=\"17-character VIN\">
-                      </div>
-                      <div class=\"form-row\">
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">License Plate</label>
-                              <input type=\"text\" class=\"form-input\" name=\"license_plate\" required placeholder=\"ABC-1234\">
-                          </div>
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Current Mileage (KM)</label>
-                              <input type=\"number\" class=\"form-input\" name=\"mileage\" required min=\"0\" placeholder=\"80000\">
-                          </div>
-                      </div>
-                      <div style=\"display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;\">
-                          <button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal('vehicleModal')\">Cancel</button>
-                          <button type=\"submit\" class=\"btn btn-primary\">Save Vehicle</button>
-                      </div>
-                  </form>
-              </div>
-          </div>
+    <!-- Add/Edit Vehicle Modal -->
+    <div id="vehicleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="vehicleModalTitle">Add New Vehicle</h3>
+                <button class="close-btn" onclick="closeModal('vehicleModal')">&times;</button>
+            </div>
+            <form id="vehicleForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Make</label>
+                        <input type="text" class="form-input" name="make" required placeholder="Toyota, Ford, BMW...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Model</label>
+                        <input type="text" class="form-input" name="model" required placeholder="Camry, F-150, 3 Series...">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Year</label>
+                        <input type="number" class="form-input" name="year" required min="1900" max="2025">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Color</label>
+                        <input type="text" class="form-input" name="color" required placeholder="Red, Blue, Silver...">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">VIN (Vehicle Identification Number)</label>
+                    <input type="text" class="form-input" name="vin" required maxlength="17" placeholder="17-character VIN">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">License Plate</label>
+                        <input type="text" class="form-input" name="license_plate" required placeholder="ABC-1234">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Current Mileage (KM)</label>
+                        <input type="number" class="form-input" name="mileage" required min="0" placeholder="80000">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('vehicleModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Vehicle</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-          <!-- Vehicle Details Modal -->
-          <div id=\"vehicleDetailsModal\" class=\"modal\">
-              <div class=\"modal-content\" style=\"max-width: 900px;\">
-                  <div class=\"modal-header\">
-                      <h3 class=\"modal-title\" id=\"vehicleDetailsTitle\">Vehicle Details</h3>
-                      <button class=\"close-btn\" onclick=\"closeModal('vehicleDetailsModal')\">&times;</button>
-                  </div>
-                  <div id=\"vehicleDetailsContent\"></div>
-              </div>
-          </div>
+    <!-- Vehicle Details Modal -->
+    <div id="vehicleDetailsModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="vehicleDetailsTitle">Vehicle Details</h3>
+                <button class="close-btn" onclick="closeModal('vehicleDetailsModal')">&times;</button>
+            </div>
+            <div id="vehicleDetailsContent"></div>
+        </div>
+    </div>
 
-          <!-- Maintenance Modal -->
-          <div id=\"maintenanceModal\" class=\"modal\">
-              <div class=\"modal-content\">
-                  <div class=\"modal-header\">
-                      <h3 class=\"modal-title\" id=\"maintenanceModalTitle\">Add Maintenance Record</h3>
-                      <button class=\"close-btn\" onclick=\"closeModal('maintenanceModal')\">&times;</button>
-                  </div>
-                  <form id=\"maintenanceForm\">
-                      <input type=\"hidden\" name=\"maintenance_id\" id=\"maintenanceRecordId\">
-                      <div class=\"form-group\" id=\"vehicleSelectionGroup\">
-                          <label class=\"form-label\">Select Vehicle</label>
-                          <select class=\"form-input\" name=\"vehicle_id\" id=\"maintenanceVehicleId\" required>
-                              <option value=\"\">-- Select a vehicle --</option>
-                          </select>
-                      </div>
-                      <div class=\"form-row\">
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Maintenance Type</label>
-                              <select class=\"form-input\" name=\"type\" required>
-                                  <option value=\"oil_change\">Oil Change</option>
-                                  <option value=\"tire_rotation\">Tire Rotation</option>
-                                  <option value=\"brake_service\">Brake Service</option>
-                                  <option value=\"transmission_service\">Transmission Service</option>
-                                  <option value=\"air_filter_replacement\">Air Filter Replacement</option>
-                                  <option value=\"spark_plug_replacement\">Spark Plug Replacement</option>
-                                  <option value=\"battery_replacement\">Battery Replacement</option>
-                                  <option value=\"coolant_flush\">Coolant Flush</option>
-                                  <option value=\"tune_up\">Tune Up</option>
-                                  <option value=\"inspection\">Inspection</option>
-                                  <option value=\"repair\">Repair</option>
-                                  <option value=\"other\">Other</option>
-                              </select>
-                          </div>
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Date</label>
-                              <input type=\"date\" class=\"form-input\" name=\"date\" required>
-                          </div>
-                      </div>
-                      <div class=\"form-group\">
-                          <label class=\"form-label\">Description</label>
-                          <input type=\"text\" class=\"form-input\" name=\"description\" required placeholder=\"Brief description of work performed\">
-                      </div>
-                      <div class=\"form-row\">
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Mileage (KM)</label>
-                              <input type=\"number\" class=\"form-input\" name=\"mileage\" required min=\"0\" placeholder=\"Current mileage\">
-                          </div>
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Cost ($)</label>
-                              <input type=\"number\" class=\"form-input\" name=\"cost\" required min=\"0\" step=\"0.01\" placeholder=\"0.00\">
-                          </div>
-                      </div>
-                      <div class=\"form-group\">
-                          <label class=\"form-label\">Service Provider</label>
-                          <input type=\"text\" class=\"form-input\" name=\"service_provider\" required placeholder=\"Shop name or self-service\">
-                      </div>
-                      <div class=\"form-row\">
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Next Service Date (Optional)</label>
-                              <input type=\"date\" class=\"form-input\" name=\"next_due_date\" placeholder=\"When is next service due?\">
-                          </div>
-                          <div class=\"form-group\">
-                              <label class=\"form-label\">Next Service KM (Optional)</label>
-                              <input type=\"number\" class=\"form-input\" name=\"next_due_mileage\" min=\"0\" placeholder=\"Mileage for next service\">
-                          </div>
-                      </div>
-                      <div class=\"form-group\">
-                          <label class=\"form-label\">Notes (Optional)</label>
-                          <textarea class=\"form-input\" name=\"notes\" rows=\"3\" placeholder=\"Additional notes...\"></textarea>
-                      </div>
-                      <div style=\"display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;\">
-                          <button type=\"button\" class=\"btn btn-secondary\" onclick=\"closeModal('maintenanceModal')\">Cancel</button>
-                          <button type=\"submit\" class=\"btn btn-primary\" id=\"maintenanceSubmitBtn\">Save Record</button>
-                      </div>
-                  </form>
-              </div>
-          </div>
+    <!-- Maintenance Modal -->
+    <div id="maintenanceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="maintenanceModalTitle">Add Maintenance Record</h3>
+                <button class="close-btn" onclick="closeModal('maintenanceModal')">&times;</button>
+            </div>
+            <form id="maintenanceForm">
+                <input type="hidden" name="maintenance_id" id="maintenanceRecordId">
+                <div class="form-group" id="vehicleSelectionGroup">
+                    <label class="form-label">Select Vehicle</label>
+                    <select class="form-input" name="vehicle_id" id="maintenanceVehicleId" required>
+                        <option value="">-- Select a vehicle --</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Maintenance Type</label>
+                        <select class="form-input" name="type" required>
+                            <option value="oil_change">Oil Change</option>
+                            <option value="tire_rotation">Tire Rotation</option>
+                            <option value="brake_service">Brake Service</option>
+                            <option value="transmission_service">Transmission Service</option>
+                            <option value="air_filter_replacement">Air Filter Replacement</option>
+                            <option value="spark_plug_replacement">Spark Plug Replacement</option>
+                            <option value="battery_replacement">Battery Replacement</option>
+                            <option value="coolant_flush">Coolant Flush</option>
+                            <option value="tune_up">Tune Up</option>
+                            <option value="inspection">Inspection</option>
+                            <option value="repair">Repair</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-input" name="date" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-input" name="description" required placeholder="Brief description of work performed">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Mileage (KM)</label>
+                        <input type="number" class="form-input" name="mileage" required min="0" placeholder="Current mileage">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cost ($)</label>
+                        <input type="number" class="form-input" name="cost" required min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Service Provider</label>
+                    <input type="text" class="form-input" name="service_provider" required placeholder="Shop name or self-service">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Next Service Date (Optional)</label>
+                        <input type="date" class="form-input" name="next_due_date" placeholder="When is next service due?">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Next Service KM (Optional)</label>
+                        <input type="number" class="form-input" name="next_due_mileage" min="0" placeholder="Mileage for next service">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (Optional)</label>
+                    <textarea class="form-input" name="notes" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('maintenanceModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="maintenanceSubmitBtn">Save Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-          <script>
-              // Debug logging
-              function debugLog(message) {
-                  const debugElement = document.getElementById('debug-log');
-                  const timestamp = new Date().toLocaleTimeString();
-                  debugElement.innerHTML += timestamp + ': ' + message + '<br/>';
-                  debugElement.scrollTop = debugElement.scrollHeight;
-                  console.log('[DEBUG]', message);
-              }
+    <script>
+        // Debug logging function
+        function debugLog(message) {
+            const debugElement = document.getElementById('debug-log');
+            const timestamp = new Date().toLocaleTimeString();
+            debugElement.innerHTML += timestamp + ': ' + message + '<br/>';
+            debugElement.scrollTop = debugElement.scrollHeight;
+            console.log('[DEBUG]', message);
+        }
 
-              // Show current location info
-              document.getElementById('current-location').textContent = window.location.href;
+        // Show current location info
+        document.getElementById('current-location').textContent = window.location.href;
 
-              // Simplified API URL detection with better debugging
-              let API_URL = null;
-              let possibleApiUrls = [];
+        // Simplified API URL detection with better debugging
+        let API_URL = null;
+        let possibleApiUrls = [];
 
-              function generateApiUrls() {
-                  const protocol = window.location.protocol;
-                  const hostname = window.location.hostname;
-                  const port = window.location.port;
-                  
-                  debugLog('Current location: ' + protocol + '//' + hostname + (port ? ':' + port : ''));
-                  
-                  const urls = [];
-                  
-                  // Method 1: If on pitstop subdomain, try api.pitstop subdomain
-                  if (hostname.startsWith('pitstop.')) {
-                      const baseDomain = hostname.substring(8); // Remove 'pitstop.'
-                      const apiSubdomain = protocol + '//api.pitstop.' + baseDomain;
-                      urls.push(apiSubdomain);
-                      debugLog('Detected pitstop subdomain, trying: ' + apiSubdomain);
-                  }
-                  
-                  // Method 2: Try direct port access
-                  const directPort = protocol + '//' + hostname + ':8334';
-                  urls.push(directPort);
-                  debugLog('Adding direct port: ' + directPort);
-                  
-                  // Method 3: Try /api path (reverse proxy)
-                  const apiPath = protocol + '//' + hostname + (port && port !== '80' && port !== '443' ? ':' + port : '') + '/api';
-                  urls.push(apiPath);
-                  debugLog('Adding API path: ' + apiPath);
-                  
-                  // Method 4: Localhost fallback
-                  urls.push('http://localhost:8334');
-                  debugLog('Adding localhost fallback');
-                  
-                  return urls;
-              }
+        function generateApiUrls() {
+            const protocol = window.location.protocol;
+            const hostname = window.location.hostname;
+            const port = window.location.port;
+            
+            debugLog('Current location: ' + protocol + '//' + hostname + (port ? ':' + port : ''));
+            
+            const urls = [];
+            
+            // Method 1: If on pitstop subdomain, try api.pitstop subdomain
+            if (hostname.startsWith('pitstop.')) {
+                const baseDomain = hostname.substring(8); // Remove 'pitstop.'
+                const apiSubdomain = protocol + '//api.pitstop.' + baseDomain;
+                urls.push(apiSubdomain);
+                debugLog('Detected pitstop subdomain, trying: ' + apiSubdomain);
+            }
+            
+            // Method 2: Try direct port access
+            const directPort = protocol + '//' + hostname + ':8334';
+            urls.push(directPort);
+            debugLog('Adding direct port: ' + directPort);
+            
+            // Method 3: Try /api path (reverse proxy)
+            const apiPath = protocol + '//' + hostname + (port && port !== '80' && port !== '443' ? ':' + port : '') + '/api';
+            urls.push(apiPath);
+            debugLog('Adding API path: ' + apiPath);
+            
+            // Method 4: Localhost fallback
+            urls.push('http://localhost:8334');
+            debugLog('Adding localhost fallback');
+            
+            return urls;
+        }
 
-              possibleApiUrls = generateApiUrls();
+        possibleApiUrls = generateApiUrls();
 
-              let vehicles = [];
-              let currentVehicle = null;
+        let vehicles = [];
+        let currentVehicle = null;
 
-              // Navigation
-              function showSection(sectionName) {
-                  document.querySelectorAll('.content-section').forEach(section => {
-                      section.classList.remove('active');
-                  });
-                  
-                  document.getElementById(sectionName).classList.add('active');
-                  
-                  if (sectionName === 'vehicles') {
-                      loadVehicles();
-                  } else if (sectionName === 'maintenance') {
-                      loadAllMaintenance();
-                  } else if (sectionName === 'reports') {
-                      loadReports();
-                  }
-              }
+        // Navigation function
+        function showSection(sectionName) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            document.getElementById(sectionName).classList.add('active');
+            
+            if (sectionName === 'vehicles') {
+                loadVehicles();
+            } else if (sectionName === 'maintenance') {
+                loadAllMaintenance();
+            } else if (sectionName === 'reports') {
+                loadReports();
+            }
+        }
 
-              function highlightNav(sectionName) {
-                  document.querySelectorAll('.nav-btn').forEach(btn => {
-                      btn.classList.remove('active');
-                  });
-                  
-                  const navButtons = document.querySelectorAll('.nav-btn');
-                  const sectionMap = { 'dashboard': 0, 'vehicles': 1, 'maintenance': 2, 'reports': 3 };
-                  if (navButtons[sectionMap[sectionName]]) {
-                      navButtons[sectionMap[sectionName]].classList.add('active');
-                  }
-              }
+        function highlightNav(sectionName) {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const sectionMap = { 'dashboard': 0, 'vehicles': 1, 'maintenance': 2, 'reports': 3 };
+            if (navButtons[sectionMap[sectionName]]) {
+                navButtons[sectionMap[sectionName]].classList.add('active');
+            }
+        }
 
-              // Modal functions
-              function openModal(modalId) {
-                  document.getElementById(modalId).classList.add('active');
-              }
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
 
-              function closeModal(modalId) {
-                  document.getElementById(modalId).classList.remove('active');
-              }
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
 
-              // Enhanced API call function with better success handling
-              async function apiCall(endpoint, options = {}) {
-                  debugLog('Starting API call to: ' + endpoint);
-                  
-                  // If we already have a working API_URL, try it first
-                  const urlsToTry = API_URL ? [API_URL, ...possibleApiUrls.filter(url => url !== API_URL)] : possibleApiUrls;
-                  
-                  for (let i = 0; i < urlsToTry.length; i++) {
-                      const baseUrl = urlsToTry[i];
-                      const fullUrl = baseUrl + endpoint;
-                      
-                      try {
-                          debugLog('Trying URL ' + (i + 1) + '/' + urlsToTry.length + ': ' + fullUrl);
-                          
-                          const fetchOptions = {
-                              headers: {
-                                  'Content-Type': 'application/json',
-                                  ...options.headers
-                              },
-                              ...options
-                          };
-                          
-                          // Add timeout - longer for POST requests
-                          const timeoutMs = options.method === 'POST' || options.method === 'PUT' ? 20000 : 10000;
-                          const controller = new AbortController();
-                          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-                          fetchOptions.signal = controller.signal;
-                          
-                          const response = await fetch(fullUrl, fetchOptions);
-                          clearTimeout(timeoutId);
-                          
-                          debugLog('Response status: ' + response.status + ' ' + response.statusText);
-                          
-                          if (!response.ok) {
-                              let errorText = '';
-                              try {
-                                  errorText = await response.text();
-                                  debugLog('Error response body: ' + errorText);
-                              } catch (e) {
-                                  errorText = 'Could not read error response';
-                              }
-                              throw new Error('HTTP ' + response.status + ': ' + response.statusText + (errorText ? ' - ' + errorText : ''));
-                          }
-                          
-                          // Success! Update global API_URL and UI
-                          if (API_URL !== baseUrl) {
-                              API_URL = baseUrl;
-                              document.getElementById('api-url-display').textContent = API_URL;
-                              document.getElementById('api-status').textContent = '✅ Connected';
-                              document.getElementById('api-status').style.color = 'green';
-                              debugLog('✅ SUCCESS! Using API URL: ' + API_URL);
-                          }
-                          
-                          const result = await response.json();
-                          debugLog('✅ API call successful, got response data');
-                          return result;
-                      } catch (error) {
-                          debugLog('❌ Failed: ' + error.message);
-                          
-                          // If this is the last URL to try, update status
-                          if (i === urlsToTry.length - 1) {
-                              document.getElementById('api-status').textContent = '❌ All endpoints failed';
-                              document.getElementById('api-status').style.color = 'red';
-                              document.getElementById('api-url-display').textContent = 'Connection failed';
-                              debugLog('❌ ALL ENDPOINTS FAILED for ' + endpoint);
-                          }
-                          continue;
-                      }
-                  }
-                  
-                  throw new Error('All API endpoints failed for ' + endpoint);
-              }
+        // Enhanced API call function with better success handling
+        async function apiCall(endpoint, options = {}) {
+            debugLog('Starting API call to: ' + endpoint);
+            
+            // If we already have a working API_URL, try it first
+            const urlsToTry = API_URL ? [API_URL, ...possibleApiUrls.filter(url => url !== API_URL)] : possibleApiUrls;
+            
+            for (let i = 0; i < urlsToTry.length; i++) {
+                const baseUrl = urlsToTry[i];
+                const fullUrl = baseUrl + endpoint;
+                
+                try {
+                    debugLog('Trying URL ' + (i + 1) + '/' + urlsToTry.length + ': ' + fullUrl);
+                    
+                    const fetchOptions = {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...options.headers
+                        },
+                        ...options
+                    };
+                    
+                    // Add timeout - longer for POST requests
+                    const timeoutMs = options.method === 'POST' || options.method === 'PUT' ? 20000 : 10000;
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+                    fetchOptions.signal = controller.signal;
+                    
+                    const response = await fetch(fullUrl, fetchOptions);
+                    clearTimeout(timeoutId);
+                    
+                    debugLog('Response status: ' + response.status + ' ' + response.statusText);
+                    
+                    if (!response.ok) {
+                        let errorText = '';
+                        try {
+                            errorText = await response.text();
+                            debugLog('Error response body: ' + errorText);
+                        } catch (e) {
+                            errorText = 'Could not read error response';
+                        }
+                        throw new Error('HTTP ' + response.status + ': ' + response.statusText + (errorText ? ' - ' + errorText : ''));
+                    }
+                    
+                    // Success! Update global API_URL and UI
+                    if (API_URL !== baseUrl) {
+                        API_URL = baseUrl;
+                        document.getElementById('api-url-display').textContent = API_URL;
+                        document.getElementById('api-status').textContent = '✅ Connected';
+                        document.getElementById('api-status').style.color = 'green';
+                        debugLog('✅ SUCCESS! Using API URL: ' + API_URL);
+                    }
+                    
+                    const result = await response.json();
+                    debugLog('✅ API call successful, got response data');
+                    return result;
+                } catch (error) {
+                    debugLog('❌ Failed: ' + error.message);
+                    
+                    // If this is the last URL to try, update status
+                    if (i === urlsToTry.length - 1) {
+                        document.getElementById('api-status').textContent = '❌ All endpoints failed';
+                        document.getElementById('api-status').style.color = 'red';
+                        document.getElementById('api-url-display').textContent = 'Connection failed';
+                        debugLog('❌ ALL ENDPOINTS FAILED for ' + endpoint);
+                    }
+                    continue;
+                }
+            }
+            
+            throw new Error('All API endpoints failed for ' + endpoint);
+        }
 
-              // Test API connectivity
-              async function testApiConnectivity() {
-                  debugLog('Testing API connectivity...');
-                  try {
-                      const health = await apiCall('/health');
-                      debugLog('Health check successful: ' + JSON.stringify(health));
-                      return true;
-                  } catch (error) {
-                      debugLog('Health check failed: ' + error.message);
-                      // Try basic root endpoint
-                      try {
-                          const root = await apiCall('/');
-                          debugLog('Root endpoint successful: ' + JSON.stringify(root));
-                          return true;
-                      } catch (rootError) {
-                          debugLog('Root endpoint also failed: ' + rootError.message);
-                          return false;
-                      }
-                  }
-              }
-              
-              // Debug function to check maintenance records
-              async function debugMaintenanceRecords() {
-                  try {
-                      debugLog('=== DEBUG: Checking maintenance records ===');
-                      const vehicles = await apiCall('/api/vehicles');
-                      debugLog('Total vehicles: ' + vehicles.length);
-                      
-                      for (const vehicle of vehicles) {
-                          const maintenance = await apiCall('/api/vehicles/' + vehicle.id + '/maintenance');
-                          debugLog(`Vehicle ${vehicle.year} ${vehicle.make} ${vehicle.model}: ${maintenance.length} maintenance records`);
-                          maintenance.forEach(record => {
-                              debugLog(`  - ${record.type}: ${record.description} (${record.date})`);
-                          });
-                      }
-                      debugLog('=== END DEBUG ===');
-                  } catch (error) {
-                      debugLog('Debug maintenance failed: ' + error.message);
-                  }
-              }
+        // Test API connectivity
+        async function testApiConnectivity() {
+            debugLog('Testing API connectivity...');
+            try {
+                const health = await apiCall('/health');
+                debugLog('Health check successful: ' + JSON.stringify(health));
+                return true;
+            } catch (error) {
+                debugLog('Health check failed: ' + error.message);
+                // Try basic root endpoint
+                try {
+                    const root = await apiCall('/');
+                    debugLog('Root endpoint successful: ' + JSON.stringify(root));
+                    return true;
+                } catch (rootError) {
+                    debugLog('Root endpoint also failed: ' + rootError.message);
+                    return false;
+                }
+            }
+        }
 
-              // Dashboard functions
-              async function loadDashboard() {
-                  try {
-                      debugLog('Loading dashboard stats...');
-                      const stats = await apiCall('/api/dashboard/stats');
-                      debugLog('Dashboard stats loaded: ' + JSON.stringify(stats));
-                      
-                      document.getElementById('total-vehicles').textContent = stats.total_vehicles;
-                      document.getElementById('total-maintenance').textContent = stats.total_maintenance_records;
-                      document.getElementById('total-insurance').textContent = stats.total_insurance_records;
-                      document.getElementById('total-registration').textContent = stats.total_registration_records;
-                      
-                      document.getElementById('stats-loading').style.display = 'none';
-                      document.getElementById('stats-grid').style.display = 'grid';
-                  } catch (error) {
-                      debugLog('Dashboard loading failed: ' + error.message);
-                      document.getElementById('stats-loading').textContent = 'Error loading dashboard data: ' + error.message;
-                  }
-              }
+        // Debug function to check maintenance records
+        async function debugMaintenanceRecords() {
+            try {
+                debugLog('=== DEBUG: Checking maintenance records ===');
+                const vehicles = await apiCall('/api/vehicles');
+                debugLog('Total vehicles: ' + vehicles.length);
+                for (const vehicle of vehicles) {
+                    const maintenance = await apiCall('/api/vehicles/' + vehicle.id + '/maintenance');
+                    debugLog(`Vehicle ${vehicle.year} ${vehicle.make} ${vehicle.model}: ${maintenance.length} maintenance records`);
+                    maintenance.forEach(record => {
+                        debugLog(` - ${record.type}: ${record.description} (${record.date})`);
+                    });
+                }
+                debugLog('=== END DEBUG ===');
+            } catch (error) {
+                debugLog('Debug maintenance failed: ' + error.message);
+            }
+        }
 
-              // Vehicle functions
-              async function loadVehicles() {
-                  document.getElementById('vehicles-loading').style.display = 'block';
-                  document.getElementById('vehicles-grid').innerHTML = '';
-                  
-                  try {
-                      debugLog('Loading vehicles...');
-                      vehicles = await apiCall('/api/vehicles');
-                      debugLog('Vehicles loaded: ' + vehicles.length + ' vehicles');
-                      displayVehicles(vehicles);
-                  } catch (error) {
-                      debugLog('Vehicle loading failed: ' + error.message);
-                      document.getElementById('vehicles-loading').textContent = 'Error loading vehicles: ' + error.message;
-                  }
-              }
+        // Dashboard functions
+        async function loadDashboard() {
+            try {
+                debugLog('Loading dashboard stats...');
+                const stats = await apiCall('/api/dashboard/stats');
+                debugLog('Dashboard stats loaded: ' + JSON.stringify(stats));
+                
+                document.getElementById('total-vehicles').textContent = stats.total_vehicles;
+                document.getElementById('total-maintenance').textContent = stats.total_maintenance_records;
+                document.getElementById('total-insurance').textContent = stats.total_insurance_records;
+                document.getElementById('total-registration').textContent = stats.total_registration_records;
+                
+                document.getElementById('stats-loading').style.display = 'none';
+                document.getElementById('stats-grid').style.display = 'grid';
+            } catch (error) {
+                debugLog('Dashboard loading failed: ' + error.message);
+                document.getElementById('stats-loading').textContent = 'Error loading dashboard data: ' + error.message;
+            }
+        }
 
-              function displayVehicles(vehicleList) {
-                  const grid = document.getElementById('vehicles-grid');
-                  document.getElementById('vehicles-loading').style.display = 'none';
-                  
-                  // Update global vehicles array
-                  vehicles = vehicleList;
-                  
-                  if (vehicleList.length === 0) {
-                      grid.innerHTML = '<div class=\"empty-state\"><h3>No vehicles added yet</h3><p>Click \"Add Vehicle\" to get started</p></div>';
-                      return;
-                  }
-                  
-                  grid.innerHTML = vehicleList.map(vehicle => {
-                      return '<div class=\"vehicle-card\">' +
-                          '<div class=\"vehicle-header\">' +
-                              '<div class=\"vehicle-title\">' + vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model + '</div>' +
-                              '<div class=\"vehicle-actions\">' +
-                                  '<button class=\"btn btn-primary\" onclick=\"viewVehicleDetails(' + JSON.stringify(vehicle.id).replace(/\"/g, '&quot;') + ')\">Details</button>' +
-                                  '<button class=\"btn btn-danger\" onclick=\"deleteVehicle(' + JSON.stringify(vehicle.id).replace(/\"/g, '&quot;') + ')\">Delete</button>' +
-                              '</div>' +
-                          '</div>' +
-                          '<div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9em; color: #666;\">' +
-                              '<div><strong>License:</strong> ' + vehicle.license_plate + '</div>' +
-                              '<div><strong>Color:</strong> ' + vehicle.color + '</div>' +
-                              '<div><strong>Mileage:</strong> ' + parseInt(vehicle.mileage).toLocaleString() + ' km</div>' +
-                              '<div><strong>VIN:</strong> ' + vehicle.vin.slice(-4) + '</div>' +
-                          '</div>' +
-                      '</div>';
-                  }).join('');
-              }
+        // Vehicle functions
+        async function loadVehicles() {
+            document.getElementById('vehicles-loading').style.display = 'block';
+            document.getElementById('vehicles-grid').innerHTML = '';
+            
+            try {
+                debugLog('Loading vehicles...');
+                vehicles = await apiCall('/api/vehicles');
+                debugLog('Vehicles loaded: ' + vehicles.length + ' vehicles');
+                displayVehicles(vehicles);
+            } catch (error) {
+                debugLog('Vehicle loading failed: ' + error.message);
+                document.getElementById('vehicles-loading').textContent = 'Error loading vehicles: ' + error.message;
+            }
+        }
 
-              function openAddVehicleModal() {
-                  document.getElementById('vehicleModalTitle').textContent = 'Add New Vehicle';
-                  document.getElementById('vehicleForm').reset();
-                  document.getElementById('vehicleForm').removeAttribute('data-vehicle-id');
-                  openModal('vehicleModal');
-              }
+        function displayVehicles(vehicleList) {
+            const grid = document.getElementById('vehicles-grid');
+            document.getElementById('vehicles-loading').style.display = 'none';
+            
+            // Update global vehicles array
+            vehicles = vehicleList;
+            
+            if (vehicleList.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><h3>No vehicles added yet</h3><p>Click "Add Vehicle" to get started</p></div>';
+                return;
+            }
+            
+            grid.innerHTML = vehicleList.map(vehicle => {
+                return '<div class="vehicle-card">' +
+                    '<div class="vehicle-header">' +
+                        '<div class="vehicle-title">' + vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model + '</div>' +
+                        '<div class="vehicle-actions">' +
+                            '<button class="btn btn-primary" onclick="viewVehicleDetails(' + JSON.stringify(vehicle.id).replace(/"/g, '&quot;') + ')">Details</button>' +
+                            '<button class="btn btn-danger" onclick="deleteVehicle(' + JSON.stringify(vehicle.id).replace(/"/g, '&quot;') + ')">Delete</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9em; color: #666;">' +
+                        '<div><strong>License:</strong> ' + vehicle.license_plate + '</div>' +
+                        '<div><strong>Color:</strong> ' + vehicle.color + '</div>' +
+                        '<div><strong>Mileage:</strong> ' + parseInt(vehicle.mileage).toLocaleString() + ' km</div>' +
+                        '<div><strong>VIN:</strong> ' + vehicle.vin.slice(-4) + '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
 
-              async function viewVehicleDetails(vehicleId) {
-                  try {
-                      debugLog('Loading vehicle details for: ' + vehicleId);
-                      const vehicle = await apiCall('/api/vehicles/' + vehicleId);
-                      const maintenance = await apiCall('/api/vehicles/' + vehicleId + '/maintenance');
-                      const insurance = await apiCall('/api/vehicles/' + vehicleId + '/insurance');
-                      const registration = await apiCall('/api/vehicles/' + vehicleId + '/registration');
-                      
-                      debugLog('Vehicle details loaded successfully');
-                      currentVehicle = vehicle;
-                      displayVehicleDetails(vehicle, maintenance, insurance, registration);
-                      openModal('vehicleDetailsModal');
-                  } catch (error) {
-                      debugLog('Failed to load vehicle details: ' + error.message);
-                      alert('Failed to load vehicle details: ' + error.message);
-                  }
-              }
+        function openAddVehicleModal() {
+            document.getElementById('vehicleModalTitle').textContent = 'Add New Vehicle';
+            document.getElementById('vehicleForm').reset();
+            document.getElementById('vehicleForm').removeAttribute('data-vehicle-id');
+            openModal('vehicleModal');
+        }
 
-              function generateNextServiceHtml(record) {
-                  if (!record.next_due_date && !record.next_due_mileage) {
-                      return '';
-                  }
-                  
-                  let serviceClass = 'next-service';
-                  let serviceText = 'Next service: ';
-                  
-                  if (record.next_due_date) {
-                      const dueDate = new Date(record.next_due_date);
-                      const today = new Date();
-                      const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-                      
-                      if (daysUntilDue < 0) {
-                          serviceClass += ' overdue';
-                          serviceText += 'OVERDUE (' + Math.abs(daysUntilDue) + ' days ago)';
-                      } else if (daysUntilDue <= 30) {
-                          serviceClass += ' due-soon';
-                          serviceText += 'Due in ' + daysUntilDue + ' days';
-                      } else {
-                          serviceText += dueDate.toLocaleDateString();
-                      }
-                  }
-                  
-                  if (record.next_due_mileage) {
-                      if (record.next_due_date) serviceText += ' or ';
-                      serviceText += parseInt(record.next_due_mileage).toLocaleString() + ' km';
-                  }
-                  
-                  return '<div class=\"' + serviceClass + '\">' + serviceText + '</div>';
-              }
+        // Function to populate vehicle dropdown
+        function populateVehicleDropdown(selectedVehicleId = null) {
+            const vehicleSelect = document.getElementById('maintenanceVehicleId');
+            vehicleSelect.innerHTML = '<option value="">-- Select a vehicle --</option>';
+            
+            if (vehicles.length === 0) {
+                vehicleSelect.innerHTML = '<option value="">No vehicles available</option>';
+                return;
+            }
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.id;
+                option.textContent = vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model + ' (' + vehicle.license_plate + ')';
+                if (selectedVehicleId && vehicle.id === selectedVehicleId) {
+                    option.selected = true;
+                }
+                vehicleSelect.appendChild(option);
+            });
+        }
 
-              function displayVehicleDetails(vehicle, maintenance, insurance, registration) {
-                  document.getElementById('vehicleDetailsTitle').textContent = vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model;
-                  
-                  const content = document.getElementById('vehicleDetailsContent');
-                  content.innerHTML = 
-                      '<div class=\"tabs\">' +
-                          '<button class=\"tab active\" onclick=\"showTab(\\'info\\')\">Vehicle Info</button>' +
-                          '<button class=\"tab\" onclick=\"showTab(\\'maintenance\\')\">Maintenance (' + maintenance.length + ')</button>' +
-                          '<button class=\"tab\" onclick=\"showTab(\\'insurance\\')\">Insurance (' + insurance.length + ')</button>' +
-                          '<button class=\"tab\" onclick=\"showTab(\\'registration\\')\">Registration (' + registration.length + ')</button>' +
-                      '</div>' +
-                      
-                      '<div id=\"tab-info\" class=\"tab-content active\">' +
-                          '<div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 20px;\">' +
-                              '<div><strong>Make:</strong> ' + vehicle.make + '</div>' +
-                              '<div><strong>Model:</strong> ' + vehicle.model + '</div>' +
-                              '<div><strong>Year:</strong> ' + vehicle.year + '</div>' +
-                              '<div><strong>Color:</strong> ' + vehicle.color + '</div>' +
-                              '<div><strong>License Plate:</strong> ' + vehicle.license_plate + '</div>' +
-                              '<div><strong>Mileage:</strong> ' + parseInt(vehicle.mileage).toLocaleString() + ' km</div>' +
-                              '<div style=\"grid-column: 1 / -1;\"><strong>VIN:</strong> ' + vehicle.vin + '</div>' +
-                          '</div>' +
-                      '</div>' +
-                      
-                      '<div id=\"tab-maintenance\" class=\"tab-content\">' +
-                          '<div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;\">' +
-                              '<h4>Maintenance Records</h4>' +
-                              '<button class=\"btn btn-success\" onclick=\"openMaintenanceModal(' + JSON.stringify(vehicle.id).replace(/\"/g, '&quot;') + ')\">+ Add Maintenance</button>' +
-                          '</div>' +
-                          '<div class=\"records-list\">' +
-                              (maintenance.length === 0 ? '<div class=\"empty-state\"><p>No maintenance records yet</p></div>' : 
-                                maintenance.map(record => {
-                                    const nextServiceHtml = generateNextServiceHtml(record);
-                                    
-                                    return '<div class=\"record-item\">' +
-                                        '<div class=\"record-actions\">' +
-                                            '<button class=\"btn btn-warning btn-sm\" onclick=\"editMaintenanceRecord(' + JSON.stringify(record.id).replace(/\"/g, '&quot;') + ')\">Edit</button>' +
-                                            '<button class=\"btn btn-danger btn-sm\" onclick=\"deleteMaintenanceRecord(' + JSON.stringify(record.id).replace(/\"/g, '&quot;') + ')\">Delete</button>' +
-                                        '</div>' +
-                                        '<div class=\"record-header\">' +
-                                            '<span class=\"record-type\">' + record.type.replace('_', ' ').toUpperCase() + '</span>' +
-                                            '<span class=\"record-date\">' + new Date(record.date).toLocaleDateString() + '</span>' +
-                                        '</div>' +
-                                        '<div><strong>' + record.description + '</strong></div>' +
-                                        '<div style=\"margin-top: 8px; font-size: 0.9em; color: #666;\">' +
-                                            record.service_provider + ' • ' + parseInt(record.mileage).toLocaleString() + ' km • $' + parseFloat(record.cost).toFixed(2) +
-                                        '</div>' +
-                                        (record.notes ? '<div style=\"margin-top: 8px; font-style: italic;\">' + record.notes + '</div>' : '') +
-                                        nextServiceHtml +
-                                    '</div>';
-                                }).join('')) +
-                          '</div>' +
-                      '</div>' +
-                      
-                      '<div id=\"tab-insurance\" class=\"tab-content\">' +
-                          '<div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;\">' +
-                              '<h4>Insurance Records</h4>' +
-                              '<button class=\"btn btn-success\" onclick=\"alert(\\'Insurance form coming soon!\\')\">+ Add Insurance</button>' +
-                          '</div>' +
-                          '<div class=\"records-list\">' +
-                              (insurance.length === 0 ? '<div class=\"empty-state\"><p>No insurance records yet</p></div>' : 
-                                insurance.map(record => 
-                                  '<div class=\"record-item\">' +
-                                      '<div><strong>' + record.provider + '</strong> - ' + record.coverage_type + '</div>' +
-                                      '<div style=\"margin-top: 8px; font-size: 0.9em; color: #666;\">' +
-                                          'Policy: ' + record.policy_number + ' • Premium: $' + parseFloat(record.premium).toFixed(2) +
-                                      '</div>' +
-                                      '<div style=\"margin-top: 4px; font-size: 0.9em; color: #666;\">' +
-                                          new Date(record.start_date).toLocaleDateString() + ' - ' + new Date(record.end_date).toLocaleDateString() +
-                                      '</div>' +
-                                  '</div>'
-                                ).join('')) +
-                          '</div>' +
-                      '</div>' +
-                      
-                      '<div id=\"tab-registration\" class=\"tab-content\">' +
-                          '<div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;\">' +
-                              '<h4>Registration Records</h4>' +
-                              '<button class=\"btn btn-success\" onclick=\"alert(\\'Registration form coming soon!\\')\">+ Add Registration</button>' +
-                          '</div>' +
-                          '<div class=\"records-list\">' +
-                              (registration.length === 0 ? '<div class=\"empty-state\"><p>No registration records yet</p></div>' : 
-                                registration.map(record => 
-                                  '<div class=\"record-item\">' +
-                                      '<div><strong>Registration #' + record.registration_number + '</strong> - ' + record.state + '</div>' +
-                                      '<div style=\"margin-top: 8px; font-size: 0.9em; color: #666;\">' +
-                                          'Issued: ' + new Date(record.issue_date).toLocaleDateString() + ' • Expires: ' + new Date(record.expiry_date).toLocaleDateString() +
-                                      '</div>' +
-                                      '<div style=\"margin-top: 4px; font-size: 0.9em; color: #666;\">' +
-                                          'Fee: $' + parseFloat(record.fee).toFixed(2) +
-                                      '</div>' +
-                                  '</div>'
-                                ).join('')) +
-                          '</div>' +
-                      '</div>';
-              }
+        // Function to open maintenance modal from maintenance section
+        function openMaintenanceModalFromMaintenance() {
+            // Check if vehicles are loaded
+            if (vehicles.length === 0) {
+                alert('Please add a vehicle first before adding maintenance records.');
+                return;
+            }
+            
+            // Reset form for new record
+            document.getElementById('maintenanceModalTitle').textContent = 'Add Maintenance Record';
+            document.getElementById('maintenanceSubmitBtn').textContent = 'Save Record';
+            document.getElementById('maintenanceRecordId').value = '';
+            document.getElementById('maintenanceForm').reset();
+            document.getElementById('maintenanceForm').querySelector('[name="date"]').value = new Date().toISOString().split('T')[0];
+            
+            // Populate vehicle dropdown without pre-selection
+            populateVehicleDropdown();
+            openModal('maintenanceModal');
+        }
 
-              function showTab(tabName) {
-                  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-                  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-                  
-                  event.target.classList.add('active');
-                  document.getElementById('tab-' + tabName).classList.add('active');
-              }
+        // Form handlers
+        document.getElementById('vehicleForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const vehicleData = Object.fromEntries(formData.entries());
+            
+            // Convert numeric fields
+            vehicleData.year = parseInt(vehicleData.year);
+            vehicleData.mileage = parseInt(vehicleData.mileage);
+            
+            try {
+                debugLog('Submitting vehicle: ' + JSON.stringify(vehicleData));
+                await apiCall('/api/vehicles', {
+                    method: 'POST',
+                    body: JSON.stringify(vehicleData)
+                });
+                
+                debugLog('Vehicle created successfully');
+                closeModal('vehicleModal');
+                loadVehicles();
+                loadDashboard();
+                alert('Vehicle added successfully!');
+            } catch (error) {
+                debugLog('Failed to create vehicle: ' + error.message);
+                alert('Error adding vehicle: ' + error.message);
+            }
+        });
 
-              async function deleteVehicle(vehicleId) {
-                  if (!confirm('Are you sure you want to delete this vehicle? This will also delete all associated maintenance, insurance, and registration records.')) {
-                      return;
-                  }
-                  
-                  try {
-                      debugLog('Deleting vehicle: ' + vehicleId);
-                      await apiCall('/api/vehicles/' + vehicleId, { method: 'DELETE' });
-                      debugLog('Vehicle deleted successfully');
-                      loadVehicles();
-                      loadDashboard();
-                      alert('Vehicle deleted successfully!');
-                  } catch (error) {
-                      debugLog('Failed to delete vehicle: ' + error.message);
-                      alert('Error deleting vehicle: ' + error.message);
-                  }
-              }
+        document.getElementById('maintenanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const maintenanceData = Object.fromEntries(formData.entries());
+            
+            debugLog('Raw form data: ' + JSON.stringify(maintenanceData));
+            
+            // Validate vehicle selection
+            if (!maintenanceData.vehicle_id || maintenanceData.vehicle_id === '') {
+                alert('Please select a vehicle for this maintenance record.');
+                return;
+            }
+            
+            // Convert numeric fields and clean up empty fields
+            maintenanceData.mileage = parseInt(maintenanceData.mileage);
+            maintenanceData.cost = parseFloat(maintenanceData.cost);
+            
+            if (maintenanceData.next_due_mileage && maintenanceData.next_due_mileage !== '') {
+                maintenanceData.next_due_mileage = parseInt(maintenanceData.next_due_mileage);
+            } else {
+                delete maintenanceData.next_due_mileage;
+            }
+            
+            // Handle empty optional fields
+            if (!maintenanceData.next_due_date || maintenanceData.next_due_date === '') {
+                delete maintenanceData.next_due_date;
+            }
+            if (!maintenanceData.notes || maintenanceData.notes.trim() === '') {
+                delete maintenanceData.notes;
+            }
+            
+            const vehicleId = maintenanceData.vehicle_id;
+            const maintenanceId = maintenanceData.maintenance_id;
+            delete maintenanceData.vehicle_id;
+            delete maintenanceData.maintenance_id;
+            
+            debugLog('Cleaned maintenance data: ' + JSON.stringify(maintenanceData) + ' for vehicle: ' + vehicleId);
+            
+            try {
+                let result;
+                if (maintenanceId) {
+                    // Update existing record
+                    debugLog('Sending PUT request to /api/maintenance/' + maintenanceId);
+                    result = await apiCall('/api/maintenance/' + maintenanceId, {
+                        method: 'PUT',
+                        body: JSON.stringify(maintenanceData)
+                    });
+                    debugLog('Maintenance record updated successfully: ' + JSON.stringify(result));
+                    alert('Maintenance record updated successfully!');
+                } else {
+                    // Create new record
+                    debugLog('Sending POST request to /api/vehicles/' + vehicleId + '/maintenance');
+                    result = await apiCall('/api/vehicles/' + vehicleId + '/maintenance', {
+                        method: 'POST',
+                        body: JSON.stringify(maintenanceData)
+                    });
+                    debugLog('Maintenance record created successfully: ' + JSON.stringify(result));
+                    alert('Maintenance record added successfully!');
+                }
+                
+                closeModal('maintenanceModal');
+                loadDashboard();
+                
+                // Refresh current views
+                if (currentVehicle && currentVehicle.id === vehicleId) {
+                    viewVehicleDetails(vehicleId);
+                }
+                
+                // Refresh maintenance page if it's active
+                if (document.getElementById('maintenance').classList.contains('active')) {
+                    loadAllMaintenance();
+                }
+                
+                // Debug: Check maintenance records after operation
+                debugMaintenanceRecords();
+            } catch (error) {
+                debugLog('Failed to save maintenance record: ' + error.message);
+                alert('Error saving maintenance record: ' + error.message);
+            }
+        });
 
-              function openMaintenanceModal(vehicleId) {
-                  debugLog('Opening maintenance modal for vehicle: ' + vehicleId);
-                  
-                  // Reset form for new record
-                  document.getElementById('maintenanceModalTitle').textContent = 'Add Maintenance Record';
-                  document.getElementById('maintenanceSubmitBtn').textContent = 'Save Record';
-                  document.getElementById('maintenanceRecordId').value = '';
-                  document.getElementById('maintenanceForm').reset();
-                  document.getElementById('maintenanceForm').querySelector('[name=\"date\"]').value = new Date().toISOString().split('T')[0];
-                  
-                  // Populate vehicle dropdown
-                  populateVehicleDropdown(vehicleId);
-                  
-                  openModal('maintenanceModal');
-              }
-
-              async function editMaintenanceRecord(maintenanceId) {
-                  try {
-                      debugLog('Loading maintenance record for edit: ' + maintenanceId);
-                      const record = await apiCall('/api/maintenance/' + maintenanceId);
-                      debugLog('Maintenance record loaded: ' + JSON.stringify(record));
-                      
-                      // Fill form with existing data
-                      document.getElementById('maintenanceModalTitle').textContent = 'Edit Maintenance Record';
-                      document.getElementById('maintenanceSubmitBtn').textContent = 'Update Record';
-                      document.getElementById('maintenanceRecordId').value = maintenanceId;
-                      
-                      // Populate vehicle dropdown and select the current vehicle
-                      populateVehicleDropdown(record.vehicle_id);
-                      
-                      // Populate form fields
-                      document.querySelector('[name=\"type\"]').value = record.type;
-                      document.querySelector('[name=\"date\"]').value = record.date;
-                      document.querySelector('[name=\"description\"]').value = record.description;
-                      document.querySelector('[name=\"mileage\"]').value = record.mileage;
-                      document.querySelector('[name=\"cost\"]').value = record.cost;
-                      document.querySelector('[name=\"service_provider\"]').value = record.service_provider;
-                      document.querySelector('[name=\"notes\"]').value = record.notes || '';
-                      document.querySelector('[name=\"next_due_date\"]').value = record.next_due_date || '';
-                      document.querySelector('[name=\"next_due_mileage\"]').value = record.next_due_mileage || '';
-                      
-                      openModal('maintenanceModal');
-                  } catch (error) {
-                      debugLog('Failed to load maintenance record: ' + error.message);
-                      alert('Failed to load maintenance record: ' + error.message);
-                  }
-              }
-
-              async function deleteMaintenanceRecord(maintenanceId) {
-                  if (!confirm('Are you sure you want to delete this maintenance record?')) {
-                      return;
-                  }
-                  
-                  try {
-                      debugLog('Deleting maintenance record: ' + maintenanceId);
-                      await apiCall('/api/maintenance/' + maintenanceId, { method: 'DELETE' });
-                      debugLog('Maintenance record deleted successfully');
-                      
-                      // Refresh current view
-                      loadDashboard();
-                      if (currentVehicle) {
-                          viewVehicleDetails(currentVehicle.id);
-                      }
-                      
-                      alert('Maintenance record deleted successfully!');
-                  } catch (error) {
-                      debugLog('Failed to delete maintenance record: ' + error.message);
-                      alert('Error deleting maintenance record: ' + error.message);
-                  }
-              }
-
-              // Load all maintenance records with enhanced display
-              async function loadAllMaintenance() {
-                  try {
-                      debugLog('Loading all maintenance records...');
-                      // Use global vehicles array if available, otherwise fetch fresh data
-                      let vehiclesToUse = vehicles;
-                      if (!vehiclesToUse || vehiclesToUse.length === 0) {
-                          vehiclesToUse = await apiCall('/api/vehicles');
-                          // Update global vehicles array
-                          vehicles = vehiclesToUse;
-                      }
-                      
-                      let allMaintenance = [];
-                      
-                      for (const vehicle of vehiclesToUse) {
-                          const maintenance = await apiCall('/api/vehicles/' + vehicle.id + '/maintenance');
-                          maintenance.forEach(record => {
-                              record.vehicle_info = vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model;
-                          });
-                          allMaintenance = allMaintenance.concat(maintenance);
-                      }
-                      
-                      allMaintenance.sort((a, b) => new Date(b.date) - new Date(a.date));
-                      debugLog('Loaded ' + allMaintenance.length + ' maintenance records');
-                      
-                      const container = document.getElementById('all-maintenance-records');
-                      if (allMaintenance.length === 0) {
-                          container.innerHTML = '<div class=\"empty-state\"><h3>No maintenance records yet</h3><p>Add vehicles and maintenance records to see them here</p></div>';
-                      } else {
-                          container.innerHTML = allMaintenance.map(record => {
-                              const nextServiceHtml = generateNextServiceHtml(record);
-                              
-                              return '<div class=\"record-item\">' +
-                                  '<div class=\"record-actions\">' +
-                                      '<button class=\"btn btn-warning btn-sm\" onclick=\"editMaintenanceRecord(' + JSON.stringify(record.id).replace(/\"/g, '&quot;') + ')\">Edit</button>' +
-                                      '<button class=\"btn btn-danger btn-sm\" onclick=\"deleteMaintenanceRecord(' + JSON.stringify(record.id).replace(/\"/g, '&quot;') + ')\">Delete</button>' +
-                                  '</div>' +
-                                  '<div class=\"record-header\">' +
-                                      '<span class=\"record-type\">' + record.type.replace('_', ' ').toUpperCase() + '</span>' +
-                                      '<span class=\"record-date\">' + new Date(record.date).toLocaleDateString() + '</span>' +
-                                  '</div>' +
-                                  '<div><strong>' + record.description + '</strong> - ' + record.vehicle_info + '</div>' +
-                                  '<div style=\"margin-top: 8px; font-size: 0.9em; color: #666;\">' +
-                                      record.service_provider + ' • ' + parseInt(record.mileage).toLocaleString() + ' km • $' + parseFloat(record.cost).toFixed(2) +
-                                  '</div>' +
-                                  (record.notes ? '<div style=\"margin-top: 8px; font-style: italic;\">' + record.notes + '</div>' : '') +
-                                  nextServiceHtml +
-                              '</div>';
-                          }).join('');
-                      }
-                  } catch (error) {
-                      debugLog('Failed to load maintenance records: ' + error.message);
-                      document.getElementById('all-maintenance-records').innerHTML = '<div class=\"empty-state\"><h3>Error loading maintenance records: ' + error.message + '</h3></div>';
-                  }
-              }
-
-              // Load reports
-              async function loadReports() {
-                  try {
-                      debugLog('Loading reports...');
-                      // Use global vehicles array if available, otherwise fetch fresh data
-                      let vehiclesToUse = vehicles;
-                      if (!vehiclesToUse || vehiclesToUse.length === 0) {
-                          vehiclesToUse = await apiCall('/api/vehicles');
-                          // Update global vehicles array
-                          vehicles = vehiclesToUse;
-                      }
-                      
-                      let totalCost = 0;
-                      let totalMaintenance = 0;
-                      let upcomingServices = [];
-                      
-                      for (const vehicle of vehiclesToUse) {
-                          const maintenance = await apiCall('/api/vehicles/' + vehicle.id + '/maintenance');
-                          totalMaintenance += maintenance.length;
-                          
-                          maintenance.forEach(record => {
-                              totalCost += parseFloat(record.cost);
-                              
-                              if (record.next_due_date || record.next_due_mileage) {
-                                  upcomingServices.push({
-                                      vehicle: vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model,
-                                      type: record.type,
-                                      next_due_date: record.next_due_date,
-                                      next_due_mileage: record.next_due_mileage
-                                  });
-                              }
-                          });
-                      }
-                      
-                      document.getElementById('report-vehicles').textContent = vehicles.length;
-                      document.getElementById('report-maintenance').textContent = totalMaintenance;
-                      document.getElementById('report-cost').textContent = '$' + totalCost.toFixed(2);
-                      document.getElementById('report-avg').textContent = vehicles.length > 0 ? '$' + (totalCost / vehicles.length).toFixed(2) : '$0';
-                      
-                      const upcomingContainer = document.getElementById('upcoming-services');
-                      if (upcomingServices.length === 0) {
-                          upcomingContainer.innerHTML = '<div class=\"empty-state\"><p>No upcoming services scheduled</p></div>';
-                      } else {
-                          upcomingContainer.innerHTML = upcomingServices.map(service => 
-                              '<div class=\"record-item\">' +
-                                  '<div><strong>' + service.vehicle + '</strong> - ' + service.type.replace('_', ' ').toUpperCase() + '</div>' +
-                                  '<div style=\"margin-top: 8px; font-size: 0.9em; color: #666;\">' +
-                                      (service.next_due_date ? 'Due: ' + new Date(service.next_due_date).toLocaleDateString() : '') +
-                                      (service.next_due_date && service.next_due_mileage ? ' or ' : '') +
-                                      (service.next_due_mileage ? parseInt(service.next_due_mileage).toLocaleString() + ' km' : '') +
-                                  '</div>' +
-                              '</div>'
-                          ).join('');
-                      }
-                      debugLog('Reports loaded successfully');
-                  } catch (error) {
-                      debugLog('Failed to load reports: ' + error.message);
-                  }
-              }
-
-              // Form handlers
-              document.getElementById('vehicleForm').addEventListener('submit', async (e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.target);
-                  const vehicleData = Object.fromEntries(formData.entries());
-                  
-                  // Convert numeric fields
-                  vehicleData.year = parseInt(vehicleData.year);
-                  vehicleData.mileage = parseInt(vehicleData.mileage);
-                  
-                  try {
-                      debugLog('Submitting vehicle: ' + JSON.stringify(vehicleData));
-                      await apiCall('/api/vehicles', {
-                          method: 'POST',
-                          body: JSON.stringify(vehicleData)
-                      });
-                      
-                      debugLog('Vehicle created successfully');
-                      closeModal('vehicleModal');
-                      loadVehicles();
-                      loadDashboard();
-                      alert('Vehicle added successfully!');
-                  } catch (error) {
-                      debugLog('Failed to create vehicle: ' + error.message);
-                      alert('Error adding vehicle: ' + error.message);
-                  }
-              });
-
-              document.getElementById('maintenanceForm').addEventListener('submit', async (e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.target);
-                  const maintenanceData = Object.fromEntries(formData.entries());
-                  
-                  debugLog('Raw form data: ' + JSON.stringify(maintenanceData));
-                  
-                  // Validate vehicle selection
-                  if (!maintenanceData.vehicle_id || maintenanceData.vehicle_id === '') {
-                      alert('Please select a vehicle for this maintenance record.');
-                      return;
-                  }
-                  
-                  // Convert numeric fields and clean up empty fields
-                  maintenanceData.mileage = parseInt(maintenanceData.mileage);
-                  maintenanceData.cost = parseFloat(maintenanceData.cost);
-                  
-                  if (maintenanceData.next_due_mileage && maintenanceData.next_due_mileage !== '') {
-                      maintenanceData.next_due_mileage = parseInt(maintenanceData.next_due_mileage);
-                  } else {
-                      delete maintenanceData.next_due_mileage;
-                  }
-                  
-                  // Handle empty optional fields
-                  if (!maintenanceData.next_due_date || maintenanceData.next_due_date === '') {
-                      delete maintenanceData.next_due_date;
-                  }
-                  if (!maintenanceData.notes || maintenanceData.notes.trim() === '') {
-                      delete maintenanceData.notes;
-                  }
-                  
-                  const vehicleId = maintenanceData.vehicle_id;
-                  const maintenanceId = maintenanceData.maintenance_id;
-                  delete maintenanceData.vehicle_id;
-                  delete maintenanceData.maintenance_id;
-                  
-                  debugLog('Cleaned maintenance data: ' + JSON.stringify(maintenanceData) + ' for vehicle: ' + vehicleId);
-                  
-                  try {
-                      let result;
-                      if (maintenanceId) {
-                          // Update existing record
-                          debugLog('Sending PUT request to /api/maintenance/' + maintenanceId);
-                          result = await apiCall('/api/maintenance/' + maintenanceId, {
-                              method: 'PUT',
-                              body: JSON.stringify(maintenanceData)
-                          });
-                          debugLog('Maintenance record updated successfully: ' + JSON.stringify(result));
-                          alert('Maintenance record updated successfully!');
-                      } else {
-                          // Create new record
-                          debugLog('Sending POST request to /api/vehicles/' + vehicleId + '/maintenance');
-                          result = await apiCall('/api/vehicles/' + vehicleId + '/maintenance', {
-                              method: 'POST',
-                              body: JSON.stringify(maintenanceData)
-                          });
-                          debugLog('Maintenance record created successfully: ' + JSON.stringify(result));
-                          alert('Maintenance record added successfully!');
-                      }
-                      
-                      closeModal('maintenanceModal');
-                      loadDashboard();
-                      
-                      // Refresh current views
-                      if (currentVehicle && currentVehicle.id === vehicleId) {
-                          viewVehicleDetails(vehicleId);
-                      }
-                      
-                      // Refresh maintenance page if it's active
-                      if (document.getElementById('maintenance').classList.contains('active')) {
-                          loadAllMaintenance();
-                      }
-                      
-                      // Debug: Check maintenance records after operation
-                      debugMaintenanceRecords();
-                  } catch (error) {
-                      debugLog('Failed to save maintenance record: ' + error.message);
-                      alert('Error saving maintenance record: ' + error.message);
-                  }
-              });
-
-              // Hamburger menu functions
-              function toggleMenu() {
-                  const hamburger = document.querySelector('.hamburger');
-                  const nav = document.getElementById('nav-menu');
-                  hamburger.classList.toggle('active');
-                  nav.classList.toggle('active');
-              }
-
-              function closeMenu() {
-                  const hamburger = document.querySelector('.hamburger');
-                  const nav = document.getElementById('nav-menu');
-                  hamburger.classList.remove('active');
-                  nav.classList.remove('active');
-              }
-
-              // Function to populate vehicle dropdown
-              function populateVehicleDropdown(selectedVehicleId = null) {
-                  const vehicleSelect = document.getElementById('maintenanceVehicleId');
-                  vehicleSelect.innerHTML = '<option value=\"\">-- Select a vehicle --</option>';
-                  
-                  if (vehicles.length === 0) {
-                      vehicleSelect.innerHTML = '<option value=\"\">No vehicles available</option>';
-                      return;
-                  }
-                  
-                  vehicles.forEach(vehicle => {
-                      const option = document.createElement('option');
-                      option.value = vehicle.id;
-                      option.textContent = vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model + ' (' + vehicle.license_plate + ')';
-                      if (selectedVehicleId && vehicle.id === selectedVehicleId) {
-                          option.selected = true;
-                      }
-                      vehicleSelect.appendChild(option);
-                  });
-              }
-              
-              // Function to open maintenance modal from maintenance section
-              function openMaintenanceModalFromMaintenance() {
-                  // Check if vehicles are loaded
-                  if (vehicles.length === 0) {
-                      alert('Please add a vehicle first before adding maintenance records.');
-                      return;
-                  }
-                  
-                  // Reset form for new record
-                  document.getElementById('maintenanceModalTitle').textContent = 'Add Maintenance Record';
-                  document.getElementById('maintenanceSubmitBtn').textContent = 'Save Record';
-                  document.getElementById('maintenanceRecordId').value = '';
-                  document.getElementById('maintenanceForm').reset();
-                  document.getElementById('maintenanceForm').querySelector('[name=\"date\"]').value = new Date().toISOString().split('T')[0];
-                  
-                  // Populate vehicle dropdown without pre-selection
-                  populateVehicleDropdown();
-                  
-                  openModal('maintenanceModal');
-              }
-
-              // Initialize app
-              document.addEventListener('DOMContentLoaded', async () => {
-                  debugLog('Application initializing...');
-                  
-                  // Test connectivity first
-                  await testApiConnectivity();
-                  
-                  // Load dashboard
-                  loadDashboard();
-                  
-                  // Set default date for maintenance form
-                  const today = new Date().toISOString().split('T')[0];
-                  document.querySelector('#maintenanceForm [name=\"date\"]').value = today;
-                  
-                  // Add click handlers for nav buttons
-                  document.querySelectorAll('.nav-btn').forEach((btn, index) => {
-                      btn.addEventListener('click', () => {
-                          const sections = ['dashboard', 'vehicles', 'maintenance', 'reports'];
-                          showSection(sections[index]);
-                          highlightNav(sections[index]);
-                      });
-                  });
-                  
-                  // Add click outside handler for mobile menu
-                  document.addEventListener('click', (e) => {
-                      const nav = document.getElementById('nav-menu');
-                      const hamburger = document.querySelector('.hamburger');
-                      
-                      if (nav.classList.contains('active') && 
-                          !nav.contains(e.target) && 
-                          !hamburger.contains(e.target)) {
-                          closeMenu();
-                      }
-                  });
-                  
-                  debugLog('Application initialization complete');
-              });
-          </script>
-      </body>
-      </html>
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', async () => {
+            debugLog('Application initializing...');
+            
+            // Test connectivity first
+            await testApiConnectivity();
+            
+            // Load dashboard
+            loadDashboard();
+            
+            // Set default date for maintenance form
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelector('#maintenanceForm [name="date"]').value = today;
+            
+            // Add click handlers for nav buttons
+            document.querySelectorAll('.nav-btn').forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    const sections = ['dashboard', 'vehicles', 'maintenance', 'reports'];
+                    showSection(sections[index]);
+                    highlightNav(sections[index]);
+                });
+            });
+            
+            debugLog('Application initialization complete');
+        });
+    </script>
+</body>
+</html>

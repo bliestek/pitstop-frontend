@@ -212,6 +212,11 @@
         <div id="maintenance" class="content-section">
             <div class="card">
                 <h2>All Maintenance Records</h2>
+                <div style="margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="loadAllMaintenance()">Refresh Maintenance Records</button>
+                    <button class="btn btn-secondary" onclick="testMaintenanceRendering()">Test Button Rendering</button>
+                    <button class="btn btn-warning" onclick="console.log('Current vehicles:', vehicles); console.log('Current maintenance records:', document.getElementById('all-maintenance-records').innerHTML);">Debug Current State</button>
+                </div>
                 <div id="maintenance-content">
                     <div id="all-maintenance-records"></div>
                 </div>
@@ -449,6 +454,7 @@
 
         // Navigation function
         function showSection(sectionName) {
+            debugLog('Switching to section: ' + sectionName);
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
             });
@@ -456,10 +462,13 @@
             document.getElementById(sectionName).classList.add('active');
             
             if (sectionName === 'vehicles') {
+                debugLog('Loading vehicles section...');
                 loadVehicles();
             } else if (sectionName === 'maintenance') {
+                debugLog('Loading maintenance section...');
                 loadAllMaintenance();
             } else if (sectionName === 'reports') {
+                debugLog('Loading reports section...');
                 loadReports();
             }
         }
@@ -612,6 +621,9 @@
                 
                 document.getElementById('stats-loading').style.display = 'none';
                 document.getElementById('stats-grid').style.display = 'grid';
+                
+                // Also load vehicles to keep the global array updated
+                await loadVehicles();
             } catch (error) {
                 debugLog('Dashboard loading failed: ' + error.message);
                 document.getElementById('stats-loading').textContent = 'Error loading dashboard data: ' + error.message;
@@ -672,10 +684,28 @@
             openModal('vehicleModal');
         }
 
+        // Function to refresh vehicles array
+        async function refreshVehiclesArray() {
+            try {
+                debugLog('Refreshing vehicles array...');
+                vehicles = await apiCall('/api/vehicles');
+                debugLog('Vehicles array refreshed: ' + vehicles.length + ' vehicles');
+                return vehicles;
+            } catch (error) {
+                debugLog('Failed to refresh vehicles array: ' + error.message);
+                return [];
+            }
+        }
+
         // Function to populate vehicle dropdown
-        function populateVehicleDropdown(selectedVehicleId = null) {
+        async function populateVehicleDropdown(selectedVehicleId = null) {
             const vehicleSelect = document.getElementById('maintenanceVehicleId');
             vehicleSelect.innerHTML = '<option value="">-- Select a vehicle --</option>';
+            
+            // Ensure we have fresh vehicle data
+            if (vehicles.length === 0) {
+                await refreshVehiclesArray();
+            }
             
             if (vehicles.length === 0) {
                 vehicleSelect.innerHTML = '<option value="">No vehicles available</option>';
@@ -694,11 +724,14 @@
         }
 
         // Function to open maintenance modal from maintenance section
-        function openMaintenanceModalFromMaintenance() {
+        async function openMaintenanceModalFromMaintenance() {
             // Check if vehicles are loaded
             if (vehicles.length === 0) {
-                alert('Please add a vehicle first before adding maintenance records.');
-                return;
+                await refreshVehiclesArray();
+                if (vehicles.length === 0) {
+                    alert('Please add a vehicle first before adding maintenance records.');
+                    return;
+                }
             }
             
             // Reset form for new record
@@ -709,12 +742,12 @@
             document.getElementById('maintenanceForm').querySelector('[name="date"]').value = new Date().toISOString().split('T')[0];
             
             // Populate vehicle dropdown without pre-selection
-            populateVehicleDropdown();
+            await populateVehicleDropdown();
             openModal('maintenanceModal');
         }
 
         // Function to open maintenance modal for specific vehicle
-        function openMaintenanceModal(vehicleId) {
+        async function openMaintenanceModal(vehicleId) {
             debugLog('Opening maintenance modal for vehicle: ' + vehicleId);
             
             // Reset form for new record
@@ -725,7 +758,7 @@
             document.getElementById('maintenanceForm').querySelector('[name="date"]').value = new Date().toISOString().split('T')[0];
             
             // Populate vehicle dropdown and select the current vehicle
-            populateVehicleDropdown(vehicleId);
+            await populateVehicleDropdown(vehicleId);
             openModal('maintenanceModal');
         }
 
@@ -776,19 +809,23 @@
                     '</div>' +
                     '<div class="records-list">' +
                         (maintenance.length === 0 ? '<div class="empty-state"><p>No maintenance records yet</p></div>' : 
-                          maintenance.map(record => 
-                            '<div class="record-item">' +
-                                '<div class="record-header">' +
-                                    '<span class="record-type">' + record.type.replace('_', ' ').toUpperCase() + '</span>' +
-                                    '<span class="record-date">' + new Date(record.date).toLocaleDateString() + '</span>' +
-                                '</div>' +
-                                '<div><strong>' + record.description + '</strong></div>' +
-                                '<div style="margin-top: 8px; font-size: 0.9em; color: #666;">' +
-                                    record.service_provider + ' • ' + parseInt(record.mileage).toLocaleString() + ' km • $' + parseFloat(record.cost).toFixed(2) +
-                                '</div>' +
-                                (record.notes ? '<div style="margin-top: 8px; font-style: italic;">' + record.notes + '</div>' : '') +
-                            '</div>'
-                          ).join('')) +
+                                                     maintenance.map(record => 
+                             '<div class="record-item">' +
+                                 '<div class="record-header">' +
+                                     '<span class="record-type">' + record.type.replace('_', ' ').toUpperCase() + '</span>' +
+                                     '<span class="record-date">' + new Date(record.date).toLocaleDateString() + '</span>' +
+                                 '</div>' +
+                                 '<div><strong>' + record.description + '</strong></div>' +
+                                 '<div style="margin-top: 8px; font-size: 0.9em; color: #666;">' +
+                                     record.service_provider + ' • ' + parseInt(record.mileage).toLocaleString() + ' km • $' + parseFloat(record.cost).toFixed(2) +
+                                 '</div>' +
+                                 (record.notes ? '<div style="margin-top: 8px; font-style: italic;">' + record.notes + '</div>' : '') +
+                                 '<div style="margin-top: 12px; display: flex; gap: 8px;">' +
+                                     '<button class="btn btn-sm btn-primary" onclick="editMaintenanceRecord(\'' + record.id + '\')">Edit</button>' +
+                                     '<button class="btn btn-sm btn-danger" onclick="deleteMaintenanceRecord(\'' + record.id + '\')">Delete</button>' +
+                                 '</div>' +
+                             '</div>'
+                           ).join('')) +
                     '</div>' +
                 '</div>';
         }
@@ -831,6 +868,7 @@
                 if (allMaintenance.length === 0) {
                     container.innerHTML = '<div class="empty-state"><h3>No maintenance records yet</h3><p>Add vehicles and maintenance records to see them here</p></div>';
                 } else {
+                    debugLog('Rendering ' + allMaintenance.length + ' maintenance records with Edit/Delete buttons');
                     container.innerHTML = allMaintenance.map(record => 
                         '<div class="record-item">' +
                             '<div class="record-header">' +
@@ -842,8 +880,13 @@
                                 record.service_provider + ' • ' + parseInt(record.mileage).toLocaleString() + ' km • $' + parseFloat(record.cost).toFixed(2) +
                             '</div>' +
                             (record.notes ? '<div style="margin-top: 8px; font-style: italic;">' + record.notes + '</div>' : '') +
+                            '<div style="margin-top: 12px; display: flex; gap: 8px;">' +
+                                '<button class="btn btn-sm btn-primary" onclick="editMaintenanceRecord(\'' + record.id + '\')">Edit</button>' +
+                                '<button class="btn btn-sm btn-danger" onclick="deleteMaintenanceRecord(\'' + record.id + '\')">Delete</button>' +
+                            '</div>' +
                         '</div>'
                     ).join('');
+                    debugLog('Maintenance records rendered successfully with Edit/Delete buttons');
                 }
             } catch (error) {
                 debugLog('Failed to load maintenance records: ' + error.message);
@@ -910,6 +953,125 @@
             } catch (error) {
                 debugLog('Failed to load reports: ' + error.message);
             }
+        }
+
+        // Function to edit maintenance record
+        async function editMaintenanceRecord(recordId) {
+            try {
+                debugLog('Editing maintenance record: ' + recordId);
+                
+                // Find the maintenance record
+                let foundRecord = null;
+                let foundVehicle = null;
+                
+                for (const vehicle of vehicles) {
+                    const maintenance = await apiCall('/api/vehicles/' + vehicle.id + '/maintenance');
+                    const record = maintenance.find(r => r.id === recordId);
+                    if (record) {
+                        foundRecord = record;
+                        foundVehicle = vehicle;
+                        break;
+                    }
+                }
+                
+                if (!foundRecord) {
+                    alert('Maintenance record not found');
+                    return;
+                }
+                
+                // Populate the form with existing data
+                document.getElementById('maintenanceModalTitle').textContent = 'Edit Maintenance Record';
+                document.getElementById('maintenanceSubmitBtn').textContent = 'Update Record';
+                document.getElementById('maintenanceRecordId').value = recordId;
+                
+                // Set form values
+                document.getElementById('maintenanceForm').querySelector('[name="type"]').value = foundRecord.type;
+                document.getElementById('maintenanceForm').querySelector('[name="description"]').value = foundRecord.description;
+                document.getElementById('maintenanceForm').querySelector('[name="date"]').value = foundRecord.date;
+                document.getElementById('maintenanceForm').querySelector('[name="mileage"]').value = foundRecord.mileage;
+                document.getElementById('maintenanceForm').querySelector('[name="cost"]').value = foundRecord.cost;
+                document.getElementById('maintenanceForm').querySelector('[name="service_provider"]').value = foundRecord.service_provider;
+                if (foundRecord.notes) {
+                    document.getElementById('maintenanceForm').querySelector('[name="notes"]').value = foundRecord.notes;
+                }
+                if (foundRecord.next_due_date) {
+                    document.getElementById('maintenanceForm').querySelector('[name="next_due_date"]').value = foundRecord.next_due_date;
+                }
+                if (foundRecord.next_due_mileage) {
+                    document.getElementById('maintenanceForm').querySelector('[name="next_due_mileage"]').value = foundRecord.next_due_mileage;
+                }
+                
+                // Populate vehicle dropdown and select the current vehicle
+                await populateVehicleDropdown(foundVehicle.id);
+                
+                openModal('maintenanceModal');
+            } catch (error) {
+                debugLog('Failed to edit maintenance record: ' + error.message);
+                alert('Failed to load maintenance record: ' + error.message);
+            }
+        }
+
+        // Function to delete maintenance record
+        async function deleteMaintenanceRecord(recordId) {
+            if (!confirm('Are you sure you want to delete this maintenance record? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                debugLog('Deleting maintenance record: ' + recordId);
+                
+                const response = await fetch('/api/maintenance/' + recordId, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete maintenance record');
+                }
+                
+                debugLog('Maintenance record deleted successfully');
+                
+                // Refresh the maintenance lists
+                await loadAllMaintenance();
+                if (currentVehicle) {
+                    await viewVehicleDetails(currentVehicle.id);
+                }
+                
+                alert('Maintenance record deleted successfully');
+            } catch (error) {
+                debugLog('Failed to delete maintenance record: ' + error.message);
+                alert('Failed to delete maintenance record: ' + error.message);
+            }
+        }
+
+        // Test function to manually render maintenance records with buttons
+        function testMaintenanceRendering() {
+            debugLog('Testing maintenance record rendering...');
+            
+            const container = document.getElementById('all-maintenance-records');
+            
+            // Create a test record with edit/delete buttons
+            const testHTML = `
+                <div class="record-item">
+                    <div class="record-header">
+                        <span class="record-type">TEST MAINTENANCE</span>
+                        <span class="record-date">${new Date().toLocaleDateString()}</span>
+                    </div>
+                    <div><strong>Test Maintenance Record</strong> - Test Vehicle</div>
+                    <div style="margin-top: 8px; font-size: 0.9em; color: #666;">
+                        Test Service Provider • 50,000 km • $99.99
+                    </div>
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <button class="btn btn-sm btn-primary" onclick="alert('Edit button clicked!')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="alert('Delete button clicked!')">Delete</button>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = testHTML;
+            debugLog('Test maintenance record rendered with buttons');
         }
 
         // Form handlers
@@ -1001,20 +1163,22 @@
                 }
                 
                 closeModal('maintenanceModal');
-                loadDashboard();
+                
+                // Refresh all data to ensure consistency
+                await loadDashboard();
                 
                 // Refresh current views
                 if (currentVehicle && currentVehicle.id === vehicleId) {
-                    viewVehicleDetails(vehicleId);
+                    await viewVehicleDetails(vehicleId);
                 }
                 
                 // Refresh maintenance page if it's active
                 if (document.getElementById('maintenance').classList.contains('active')) {
-                    loadAllMaintenance();
+                    await loadAllMaintenance();
                 }
                 
                 // Debug: Check maintenance records after operation
-                debugMaintenanceRecords();
+                await debugMaintenanceRecords();
             } catch (error) {
                 debugLog('Failed to save maintenance record: ' + error.message);
                 alert('Error saving maintenance record: ' + error.message);
@@ -1029,7 +1193,7 @@
             await testApiConnectivity();
             
             // Load dashboard
-            loadDashboard();
+            await loadDashboard();
             
             // Set default date for maintenance form
             const today = new Date().toISOString().split('T')[0];
@@ -1043,6 +1207,12 @@
                     highlightNav(sections[index]);
                 });
             });
+            
+            // Check if maintenance section is active and load its data
+            if (document.getElementById('maintenance').classList.contains('active')) {
+                debugLog('Maintenance section is active on page load, loading maintenance records...');
+                await loadAllMaintenance();
+            }
             
             debugLog('Application initialization complete');
         });

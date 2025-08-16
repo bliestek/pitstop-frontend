@@ -91,6 +91,14 @@
         .api-info { background: #f0f8ff; border: 1px solid #3b82f6; padding: 15px; border-radius: 6px; margin: 20px 0; font-size: 0.9em; }
         .debug-info { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.8em; max-height: 300px; overflow-y: auto; }
         
+        /* Tab styles for vehicle details */
+        .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
+        .tab { padding: 12px 24px; border: none; background: none; cursor: pointer; font-weight: 500; color: #666; border-bottom: 2px solid transparent; transition: all 0.3s; }
+        .tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+        .tab:hover { color: #3b82f6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
         /* Mobile responsive styles */
         @media (max-width: 768px) {
             .header-content { padding: 0 15px; }
@@ -703,6 +711,205 @@
             // Populate vehicle dropdown without pre-selection
             populateVehicleDropdown();
             openModal('maintenanceModal');
+        }
+
+        // Function to open maintenance modal for specific vehicle
+        function openMaintenanceModal(vehicleId) {
+            debugLog('Opening maintenance modal for vehicle: ' + vehicleId);
+            
+            // Reset form for new record
+            document.getElementById('maintenanceModalTitle').textContent = 'Add Maintenance Record';
+            document.getElementById('maintenanceSubmitBtn').textContent = 'Save Record';
+            document.getElementById('maintenanceRecordId').value = '';
+            document.getElementById('maintenanceForm').reset();
+            document.getElementById('maintenanceForm').querySelector('[name="date"]').value = new Date().toISOString().split('T')[0];
+            
+            // Populate vehicle dropdown and select the current vehicle
+            populateVehicleDropdown(vehicleId);
+            openModal('maintenanceModal');
+        }
+
+        // Function to view vehicle details
+        async function viewVehicleDetails(vehicleId) {
+            try {
+                debugLog('Loading vehicle details for: ' + vehicleId);
+                const vehicle = await apiCall('/api/vehicles/' + vehicleId);
+                const maintenance = await apiCall('/api/vehicles/' + vehicle.id + '/maintenance');
+                
+                debugLog('Vehicle details loaded successfully');
+                currentVehicle = vehicle;
+                displayVehicleDetails(vehicle, maintenance);
+                openModal('vehicleDetailsModal');
+            } catch (error) {
+                debugLog('Failed to load vehicle details: ' + error.message);
+                alert('Failed to load vehicle details: ' + error.message);
+            }
+        }
+
+        // Function to display vehicle details
+        function displayVehicleDetails(vehicle, maintenance) {
+            document.getElementById('vehicleDetailsTitle').textContent = vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model;
+            
+            const content = document.getElementById('vehicleDetailsContent');
+            content.innerHTML = 
+                '<div class="tabs">' +
+                    '<button class="tab active" onclick="showTab(\'info\')">Vehicle Info</button>' +
+                    '<button class="tab" onclick="showTab(\'maintenance\')">Maintenance (' + maintenance.length + ')</button>' +
+                '</div>' +
+                
+                '<div id="tab-info" class="tab-content active">' +
+                    '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">' +
+                        '<div><strong>Make:</strong> ' + vehicle.make + '</div>' +
+                        '<div><strong>Model:</strong> ' + vehicle.model + '</div>' +
+                        '<div><strong>Year:</strong> ' + vehicle.year + '</div>' +
+                        '<div><strong>Color:</strong> ' + vehicle.color + '</div>' +
+                        '<div><strong>License Plate:</strong> ' + vehicle.license_plate + '</div>' +
+                        '<div><strong>Mileage:</strong> ' + parseInt(vehicle.mileage).toLocaleString() + ' km</div>' +
+                        '<div style="grid-column: 1 / -1;"><strong>VIN:</strong> ' + vehicle.vin + '</div>' +
+                    '</div>' +
+                '</div>' +
+                
+                '<div id="tab-maintenance" class="tab-content">' +
+                    '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">' +
+                        '<h4>Maintenance Records</h4>' +
+                        '<button class="btn btn-success" onclick="openMaintenanceModal(' + JSON.stringify(vehicle.id).replace(/"/g, '&quot;') + ')">+ Add Maintenance</button>' +
+                    '</div>' +
+                    '<div class="records-list">' +
+                        (maintenance.length === 0 ? '<div class="empty-state"><p>No maintenance records yet</p></div>' : 
+                          maintenance.map(record => 
+                            '<div class="record-item">' +
+                                '<div class="record-header">' +
+                                    '<span class="record-type">' + record.type.replace('_', ' ').toUpperCase() + '</span>' +
+                                    '<span class="record-date">' + new Date(record.date).toLocaleDateString() + '</span>' +
+                                '</div>' +
+                                '<div><strong>' + record.description + '</strong></div>' +
+                                '<div style="margin-top: 8px; font-size: 0.9em; color: #666;">' +
+                                    record.service_provider + ' • ' + parseInt(record.mileage).toLocaleString() + ' km • $' + parseFloat(record.cost).toFixed(2) +
+                                '</div>' +
+                                (record.notes ? '<div style="margin-top: 8px; font-style: italic;">' + record.notes + '</div>' : '') +
+                            '</div>'
+                          ).join('')) +
+                    '</div>' +
+                '</div>';
+        }
+
+        // Function to show tabs
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        // Function to load all maintenance records
+        async function loadAllMaintenance() {
+            try {
+                debugLog('Loading all maintenance records...');
+                
+                // Use global vehicles array if available, otherwise fetch fresh data
+                let vehiclesToUse = vehicles;
+                if (!vehiclesToUse || vehiclesToUse.length === 0) {
+                    vehiclesToUse = await apiCall('/api/vehicles');
+                    // Update global vehicles array
+                    vehicles = vehiclesToUse;
+                }
+                
+                let allMaintenance = [];
+                for (const vehicle of vehiclesToUse) {
+                    const maintenance = await apiCall('/api/vehicles/' + vehicle.id + '/maintenance');
+                    maintenance.forEach(record => {
+                        record.vehicle_info = vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model;
+                    });
+                    allMaintenance = allMaintenance.concat(maintenance);
+                }
+                
+                allMaintenance.sort((a, b) => new Date(b.date) - new Date(a.date));
+                debugLog('Loaded ' + allMaintenance.length + ' maintenance records');
+                
+                const container = document.getElementById('all-maintenance-records');
+                if (allMaintenance.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><h3>No maintenance records yet</h3><p>Add vehicles and maintenance records to see them here</p></div>';
+                } else {
+                    container.innerHTML = allMaintenance.map(record => 
+                        '<div class="record-item">' +
+                            '<div class="record-header">' +
+                                '<span class="record-type">' + record.type.replace('_', ' ').toUpperCase() + '</span>' +
+                                '<span class="record-date">' + new Date(record.date).toLocaleDateString() + '</span>' +
+                            '</div>' +
+                            '<div><strong>' + record.description + '</strong> - ' + record.vehicle_info + '</div>' +
+                            '<div style="margin-top: 8px; font-size: 0.9em; color: #666;">' +
+                                record.service_provider + ' • ' + parseInt(record.mileage).toLocaleString() + ' km • $' + parseFloat(record.cost).toFixed(2) +
+                            '</div>' +
+                            (record.notes ? '<div style="margin-top: 8px; font-style: italic;">' + record.notes + '</div>' : '') +
+                        '</div>'
+                    ).join('');
+                }
+            } catch (error) {
+                debugLog('Failed to load maintenance records: ' + error.message);
+                document.getElementById('all-maintenance-records').innerHTML = '<div class="empty-state"><h3>Error loading maintenance records: ' + error.message + '</h3></div>';
+            }
+        }
+
+        // Function to load reports
+        async function loadReports() {
+            try {
+                debugLog('Loading reports...');
+                
+                // Use global vehicles array if available, otherwise fetch fresh data
+                let vehiclesToUse = vehicles;
+                if (!vehiclesToUse || vehiclesToUse.length === 0) {
+                    vehiclesToUse = await apiCall('/api/vehicles');
+                    // Update global vehicles array
+                    vehicles = vehiclesToUse;
+                }
+                
+                let totalCost = 0;
+                let totalMaintenance = 0;
+                let upcomingServices = [];
+                
+                for (const vehicle of vehiclesToUse) {
+                    const maintenance = await apiCall('/api/vehicles/' + vehicle.id + '/maintenance');
+                    totalMaintenance += maintenance.length;
+                    
+                    maintenance.forEach(record => {
+                        totalCost += parseFloat(record.cost);
+                        
+                        if (record.next_due_date || record.next_due_mileage) {
+                            upcomingServices.push({
+                                vehicle: vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model,
+                                type: record.type,
+                                next_due_date: record.next_due_date,
+                                next_due_mileage: record.next_due_mileage
+                            });
+                        }
+                    });
+                }
+                
+                document.getElementById('report-vehicles').textContent = vehicles.length;
+                document.getElementById('report-maintenance').textContent = totalMaintenance;
+                document.getElementById('report-cost').textContent = '$' + totalCost.toFixed(2);
+                document.getElementById('report-avg').textContent = vehicles.length > 0 ? '$' + (totalCost / vehicles.length).toFixed(2) : '$0';
+                
+                const upcomingContainer = document.getElementById('upcoming-services');
+                if (upcomingServices.length === 0) {
+                    upcomingContainer.innerHTML = '<div class="empty-state"><p>No upcoming services scheduled</p></div>';
+                } else {
+                    upcomingContainer.innerHTML = upcomingServices.map(service => 
+                        '<div class="record-item">' +
+                            '<div><strong>' + service.vehicle + '</strong> - ' + service.type.replace('_', ' ').toUpperCase() + '</div>' +
+                            '<div style="margin-top: 8px; font-size: 0.9em; color: #666;">' +
+                                (service.next_due_date ? 'Due: ' + new Date(service.next_due_date).toLocaleDateString() : '') +
+                                (service.next_due_date && service.next_due_mileage ? ' or ' : '') +
+                                (service.next_due_mileage ? parseInt(service.next_due_mileage).toLocaleString() + ' km' : '') +
+                            '</div>' +
+                        '</div>'
+                    ).join('');
+                }
+                debugLog('Reports loaded successfully');
+            } catch (error) {
+                debugLog('Failed to load reports: ' + error.message);
+            }
         }
 
         // Form handlers
